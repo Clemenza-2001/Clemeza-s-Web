@@ -10,16 +10,19 @@
 <p><a href="https://link.zhihu.com/?target=https://www.cs.ubc.ca/~lowe/keypoints/">https://www.cs.ubc.ca/<del>lowe&#x2F;keypoints&#x2F;www.cs.ubc.ca/</del>lowe&#x2F;keypoints&#x2F;</a></p>
 <p>这是David G. Lowe教授的SIFT算法Demo，在后面实战中是根据这个<strong>改进</strong>的。</p>
 <p><img src="https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg" alt="img"></p>
-<p>图1 SIFT demo下载网站（点击红框处下载）</p>
+<center>图1 SIFT demo下载网站（点击红框处下载）</center>
+
 <h3 id="SIFT算法原理"><a href="#SIFT算法原理" class="headerlink" title="SIFT算法原理"></a><strong>SIFT算法原理</strong></h3><p>David lowe在2004年的文章 Distinctive Image Features from Scale-Invariant Keypoints 中总结了SIFT特征检测算法的四个主要步骤：</p>
 <p><strong>a.</strong> <strong>尺度空间的极值检测(Scale-space extrema detection)</strong></p>
 <p>检测尺度空间极值就是搜索所有尺度上的图像位置，通过高斯微分函数来识别对于尺度和旋转不变的兴趣点。其主要步骤可以分为建立<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E9%AB%98%E6%96%AF%E9%87%91%E5%AD%97%E5%A1%94&zhida_source=entity">高斯金字塔</a>、生成<strong>DOG高斯差分金字塔</strong>和<strong>DOG局部极值点检测</strong>。</p>
 <p>图2右侧是高斯金字塔中同一Octave的不同卷积核卷积图像的差分得到的图像集。因为是差分得到的图像，故每个Octave相较于高斯金字塔中Octave数量上会减少一张。因为差分得到的图像集也是垂直方向分布，形状类似于金字塔，故被称作 “<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=2&q=%E9%AB%98%E6%96%AF%E5%B7%AE%E5%88%86%E9%87%91%E5%AD%97%E5%A1%94&zhida_source=entity">高斯差分金字塔</a>”。</p>
 <p><img src="https://pica.zhimg.com/v2-64eaaa30fb86a404bda9f81ce689c8fe_1440w.jpg" alt="img"></p>
-<p>图2 高斯差分图</p>
+<center>图2 高斯差分图</center>
+
 <p>特征点是由DOG空间的局部极值点组成的。为了寻找DOG函数的极值点，每一个像素点要和它所有的相邻点比较，看其是否比它的图像域和尺度域的相邻点大或者小<strong>。SIFT算法选择高斯差分金字塔中的极值点作为代表图像特征的关键点。</strong>需要注意的是：这里所说的极值点不仅仅是在一幅图像中像素值为极值的点，而是该点像素值对于与其同图像的八邻域和上一张图像相同位置点以及八邻域、下一张图像相同位置点以及八邻域共计26个像素值为局部极值。（如下图所示，中心黑色叉点为中心点，其将与周围共计26个绿色标记点比较确定是否为极值点）</p>
 <p><img src="https://pic1.zhimg.com/v2-7d0d1a3be1760f092b16e102c7a876c6_1440w.jpg" alt="img"></p>
-<p>图3 局部极值点检测</p>
+<center>图3 局部极值点检测</center>
+
 <p><strong>b.</strong> <strong>关键点精确定位(Keypoint localization)</strong></p>
 <p>为提高图像特征点对噪声的<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E9%B2%81%E6%A3%92%E6%80%A7&zhida_source=entity">鲁棒性</a>，SIFT算法的通常做法是对比测试和边缘测试。</p>
 <p>对比测试是指为解决对比度较低的极值点，对所有极值点进行二阶泰勒展开（second-order Taylor expansion）。如果结果值小于0.03，则剔除该关键点。边缘测试是指使用二阶Hessian矩阵来识别具有高边缘度但对少量噪声没有鲁棒性的关键点。</p>
@@ -29,12 +32,14 @@
 <p>图4右侧梯度方向直方图为简化版本（只有8个bin，实际操作时算法会统计从0到360°步长为10°的共计36个梯度方向的幅值和，共有36个bin）。梯度方向直方图中最高的bin对应的方向即定义为该关键点的主方向，若存在任一方向的幅值大于主方向幅值的80%，则将其作为辅方向。</p>
 <p>获得图像关键点主方向后，每个关键点有三个信息(x,y,σ,θ)：位置（x,y)、尺度σ、方向θ。</p>
 <p><img src="https://pic3.zhimg.com/v2-e58eca6746289f441b3238012e5cc602_1440w.jpg" alt="img"></p>
-<p>图4 局部极值点检测</p>
+<center>图4 局部极值点检测</center>
+
 <p><strong>d.</strong> <strong>关键点描述子的生成(Keypoint descriptor)</strong></p>
 <p>得到特征点二维位置、尺度位置、主方向的具体信息后，算法需要解决的最后一个问题就是生成关键点信息的描述子，即用一个向量描述图像中的特征点信息。</p>
 <p>算法将特征点周围的1616邻域分为4个88的区域，再将88的区域划为22区域，即每个小区域为44的范围。统计每个44区域的<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=4&q=%E6%A2%AF%E5%BA%A6%E6%96%B9%E5%90%91%E7%9B%B4%E6%96%B9%E5%9B%BE&zhida_source=entity">梯度方向直方图</a>（直方图为8个bin），故共计448&#x3D;128个bin（每个1616邻域有44个44邻域，每个44邻域有8个bin）。对应生成128维向量（值为梯度方向的幅值）。该128维向量即该点的特征描述子。</p>
 <p><img src="https://pica.zhimg.com/v2-71d6348e3ff8637ccf21d7886433f53e_1440w.jpg" alt="img"></p>
-<p>图5 关键点描述子的生成</p>
+<center>图5 关键点描述子的生成</center>
+
 <h3 id="SIFT代码实战"><a href="#SIFT代码实战" class="headerlink" title="SIFT代码实战"></a><strong>SIFT代码实战</strong></h3><p>*<strong>1-sift.m 检测特征点(返回图像的SIFT特征点)+构建特征点描述子*</strong></p>
 <figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line"><span class="comment">% [descriptors, locs] = sift(img)</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">% This function returns IMAGE&#x27;s SIFT keypoints.</span></span><br><span class="line"><span class="comment">%   Input parameters:</span></span><br><span class="line"><span class="comment">%     img: the image.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">%   Returned:</span></span><br><span class="line"><span class="comment">%     descriptors: a K-by-128 matrix, where each row gives an invariant</span></span><br><span class="line"><span class="comment">%         descriptor for one of the K keypoints.  The descriptor is a vector</span></span><br><span class="line"><span class="comment">%         of 128 values normalized to unit length.</span></span><br><span class="line"><span class="comment">%     locs: K-by-4 matrix, in which each row has the 4 values for a</span></span><br><span class="line"><span class="comment">%         keypoint location (row, column, scale, orientation).  The </span></span><br><span class="line"><span class="comment">%         orientation is in the range [-PI, PI] radians.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">% Credits: Thanks for initial version of this program to D. Alvaro and </span></span><br><span class="line"><span class="comment">%          J.J. Guerrero, Universidad de Zaragoza (modified by D. Lowe)</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="params">[descriptors, locs]</span> = <span class="title">sift</span><span class="params">(img)</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">% If you have the Image Processing Toolbox, you can uncomment the following</span></span><br><span class="line"><span class="comment">%   lines to allow input of color images, which will be converted to grayscale.</span></span><br><span class="line"><span class="keyword">if</span> <span class="built_in">size</span>(img,<span class="number">3</span>)</span><br><span class="line">   img = rgb2gray(img);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line">[rows, cols] = <span class="built_in">size</span>(img); </span><br><span class="line"></span><br><span class="line"><span class="comment">% Convert into PGM imagefile, readable by &quot;keypoints&quot; executable</span></span><br><span class="line">f = fopen(<span class="string">&#x27;tmp.pgm&#x27;</span>, <span class="string">&#x27;w&#x27;</span>);</span><br><span class="line"><span class="keyword">if</span> f == <span class="number">-1</span></span><br><span class="line">    error(<span class="string">&#x27;Could not create file tmp.pgm.&#x27;</span>);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">fprintf(f, <span class="string">&#x27;P5\n%d\n%d\n255\n&#x27;</span>, cols, rows);</span><br><span class="line">fwrite(f, img&#x27;, <span class="string">&#x27;uint8&#x27;</span>);</span><br><span class="line">fclose(f);</span><br><span class="line"></span><br><span class="line"><span class="comment">% Call keypoints executable</span></span><br><span class="line"><span class="keyword">if</span> isunix</span><br><span class="line">    command = <span class="string">&#x27;./sift &#x27;</span>;</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">    command = <span class="string">&#x27;siftWin32 &#x27;</span>;</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">command = [command <span class="string">&#x27; &lt;tmp.pgm &gt;tmp.key&#x27;</span>];</span><br><span class="line">system(sprintf(command));</span><br><span class="line"></span><br><span class="line"><span class="comment">% Open tmp.key and check its header</span></span><br><span class="line">g = fopen(<span class="string">&#x27;tmp.key&#x27;</span>, <span class="string">&#x27;r&#x27;</span>);</span><br><span class="line"><span class="keyword">if</span> g == <span class="number">-1</span></span><br><span class="line">    error(<span class="string">&#x27;Could not open file tmp.key.&#x27;</span>);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">[header, count] = fscanf(g, <span class="string">&#x27;%d %d&#x27;</span>, [<span class="number">1</span> <span class="number">2</span>]);</span><br><span class="line"><span class="keyword">if</span> count ~= <span class="number">2</span></span><br><span class="line">    error(<span class="string">&#x27;Invalid keypoint file beginning.&#x27;</span>);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">num = header(<span class="number">1</span>);</span><br><span class="line">len = header(<span class="number">2</span>);</span><br><span class="line"><span class="keyword">if</span> len ~= <span class="number">128</span></span><br><span class="line">    error(<span class="string">&#x27;Keypoint descriptor length invalid (should be 128).&#x27;</span>);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">% Creates the two output matrices (use known size for efficiency)</span></span><br><span class="line">locs = double(<span class="built_in">zeros</span>(num, <span class="number">4</span>));</span><br><span class="line">descriptors = double(<span class="built_in">zeros</span>(num, <span class="number">128</span>));</span><br><span class="line"></span><br><span class="line"><span class="comment">% Parse tmp.key</span></span><br><span class="line"><span class="keyword">for</span> <span class="built_in">i</span> = <span class="number">1</span>:num</span><br><span class="line">    [vector, count] = fscanf(g, <span class="string">&#x27;%f %f %f %f&#x27;</span>, [<span class="number">1</span> <span class="number">4</span>]); <span class="comment">%row col scale ori</span></span><br><span class="line">    <span class="keyword">if</span> count ~= <span class="number">4</span></span><br><span class="line">        error(<span class="string">&#x27;Invalid keypoint file format&#x27;</span>);</span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line">    locs(<span class="built_in">i</span>, :) = vector(<span class="number">1</span>, :);</span><br><span class="line">    </span><br><span class="line">    [descrip, count] = fscanf(g, <span class="string">&#x27;%d&#x27;</span>, [<span class="number">1</span> len]);</span><br><span class="line">    <span class="keyword">if</span> (count ~= <span class="number">128</span>)</span><br><span class="line">        error(<span class="string">&#x27;Invalid keypoint file value.&#x27;</span>);</span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line">    <span class="comment">% Normalize each input vector to unit length</span></span><br><span class="line">    descrip = descrip / <span class="built_in">sqrt</span>(sum(descrip.^<span class="number">2</span>));</span><br><span class="line">    descriptors(<span class="built_in">i</span>, :) = descrip(<span class="number">1</span>, :);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="comment">%delete tmp.key</span></span><br><span class="line">fclose(g);</span><br></pre></td></tr></table></figure>
 
@@ -44,7 +49,8 @@
 <p>*<strong>3-ransac1.m RANSAC算法进行<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E5%9B%BE%E5%83%8F%E9%85%8D%E5%87%86&zhida_source=entity">图像配准</a>*</strong></p>
 <p>在进行两幅或多幅图像间的镶嵌及配准时，通常情况下都会有一个参考图像或者基准图像作为处理的标准。其中就需要建立原始图像到参考图像的变换模型，而模型参数的稳健估计就成了关键技术之一。在实际问题中，得到的数据往往并不是完全准确的，常常伴随着许多异常数据，于是问题的关键在于如何处理不符合实际模型的异常数据。</p>
 <p><img src="https://pica.zhimg.com/v2-8e74180184ef20596a5209385fc6269e_1440w.jpg" alt="img"></p>
-<p>图3 左图：包含很多局外点的数据集；右图：RANSAC找到的直线（局外点并不影响结果）</p>
+<center>图3 左图：包含很多局外点的数据集；右图：RANSAC找到的直线（局外点并不影响结果）</center>
+
 <p>一个简单的例子是从一组观测数据中找出合适的2维直线。假设观测数据中包含局内点和局外点，其中局内点近似的被直线所通过，而局外点远离于直线。简单的最小二乘法不能找到适应于局内点的直线，原因是最小二乘法尽量去适应包括局外点在内的所有点。相反，RANSAC能得出一个仅仅用局内点计算出模型，并且概率还足够高。但是，RANSAC并不能保证结果一定正确，为了保证算法有足够高的合理概率，我们必须小心的选择算法的参数。</p>
 <p>RANSAC只能从特定的数据集中估计出一个模型，如果存在两个（或多个）模型，RANSAC不能找到别的模型。</p>
 <figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="params">[f inlierIdx]</span> = <span class="title">ransac1</span><span class="params">( x,y,ransacCoef,funcFindF,funcDist )</span></span></span><br><span class="line"><span class="comment">%[f inlierIdx] = ransac1( x,y,ransacCoef,funcFindF,funcDist )</span></span><br><span class="line"><span class="comment">%	Use RANdom SAmple Consensus to find a fit from X to Y.</span></span><br><span class="line"><span class="comment">%	X is M*n matrix including n points with dim M, Y is N*n;</span></span><br><span class="line"><span class="comment">%	The fit, f, and the indices of inliers, are returned.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">%	RANSACCOEF is a struct with following fields:</span></span><br><span class="line"><span class="comment">%	minPtNum,iterNum,thDist,thInlrRatio</span></span><br><span class="line"><span class="comment">%	MINPTNUM is the minimum number of points with whom can we </span></span><br><span class="line"><span class="comment">%	find a fit. For line fitting, it&#x27;s 2. For homography, it&#x27;s 4.</span></span><br><span class="line"><span class="comment">%	ITERNUM is the number of iteration, THDIST is the inlier </span></span><br><span class="line"><span class="comment">%	distance threshold and ROUND(THINLRRATIO*n) is the inlier number threshold.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">%	FUNCFINDF is a func handle, f1 = funcFindF(x1,y1)</span></span><br><span class="line"><span class="comment">%	x1 is M*n1 and y1 is N*n1, n1 &gt;= ransacCoef.minPtNum</span></span><br><span class="line"><span class="comment">%	f1 can be of any type.</span></span><br><span class="line"><span class="comment">%	FUNCDIST is a func handle, d = funcDist(f,x1,y1)</span></span><br><span class="line"><span class="comment">%	It uses f returned by FUNCFINDF, and return the distance</span></span><br><span class="line"><span class="comment">%	between f and the points, d is 1*n1.</span></span><br><span class="line"><span class="comment">%	For line fitting, it should calculate the dist between the line and the</span></span><br><span class="line"><span class="comment">%	points [x1;y1]; for homography, it should project x1 to y2 then</span></span><br><span class="line"><span class="comment">%	calculate the dist between y1 and y2.</span></span><br><span class="line">minPtNum = ransacCoef.minPtNum;</span><br><span class="line">iterNum = ransacCoef.iterNum;</span><br><span class="line">thInlrRatio = ransacCoef.thInlrRatio;</span><br><span class="line">thDist = ransacCoef.thDist;</span><br><span class="line">ptNum = <span class="built_in">size</span>(x,<span class="number">2</span>);</span><br><span class="line">thInlr = <span class="built_in">round</span>(thInlrRatio*ptNum);</span><br><span class="line"></span><br><span class="line">inlrNum = <span class="built_in">zeros</span>(<span class="number">1</span>,iterNum);</span><br><span class="line">fLib = cell(<span class="number">1</span>,iterNum);</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> p = <span class="number">1</span>:iterNum</span><br><span class="line">	<span class="comment">% 1. fit using  random points</span></span><br><span class="line">	sampleIdx = randIndex(ptNum,minPtNum);</span><br><span class="line">	f1 = funcFindF(x(:,sampleIdx),y(:,sampleIdx));</span><br><span class="line">	</span><br><span class="line">	<span class="comment">% 2. count the inliers, if more than thInlr, refit; else iterate</span></span><br><span class="line">	dist = funcDist(f1,x,y);</span><br><span class="line">	inlier1 = <span class="built_in">find</span>(dist &lt; thDist);</span><br><span class="line">	inlrNum(p) = <span class="built_in">length</span>(inlier1);</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">length</span>(inlier1) &lt; thInlr, <span class="keyword">continue</span>; <span class="keyword">end</span></span><br><span class="line">	fLib&#123;p&#125; = funcFindF(x(:,inlier1),y(:,inlier1));</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">% 3. choose the coef with the most inliers</span></span><br><span class="line">[~,idx] = <span class="built_in">max</span>(inlrNum);</span><br><span class="line">f = fLib&#123;idx&#125;;</span><br><span class="line">dist = funcDist(f,x,y);</span><br><span class="line">inlierIdx = <span class="built_in">find</span>(dist &lt; thDist);</span><br><span class="line">	</span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
@@ -72,15 +78,19 @@
 
 <h3 id="图像拼接结果"><a href="#图像拼接结果" class="headerlink" title="图像拼接结果"></a>图像拼接结果</h3><p>两张原图：</p>
 <p><img src="https://picx.zhimg.com/v2-b8c59c642cb55d882c0ba49162a30f0b_1440w.jpg" alt="img"></p>
-<p>原图1</p>
+<center>原图1</center>
+
 <p><img src="https://pica.zhimg.com/v2-d28ad687306e5ff48b56da4ff9da82aa_1440w.jpg" alt="img"></p>
-<p>原图2</p>
+<center>原图2</center>
+
 <p>两张图特征点匹配结果：</p>
 <p><img src="https://pic2.zhimg.com/v2-0dd8b2038f38d00d26576373d3c52e31_1440w.jpg" alt="img"></p>
-<p>两张图特征点匹配结果</p>
+<center>两张图特征点匹配结果</center>
+
 <p>拼接效果：</p>
 <p><img src="https://pic1.zhimg.com/v2-438c6c9b278c8a2717224ac04b93ceb8_1440w.jpg" alt="img"></p>
-<p>两张图的拼接效果</p>
+<center>两张图的拼接效果</center>
+
 <p>如果想对一系列的图片进行拼接，可以先对第一张和第二张进行拼接，得到一张拼接图，再与第三张图片进行拼接，依次类推。</p>
 <p><strong>由于还需要一些其他文件</strong>，因此将整体的demo文件放在这里：</p>
 <p>链接：<a href="https://link.zhihu.com/?target=https://pan.baidu.com/s/1D-CMz44Zgz174Q5xPrnlWw">https://pan.baidu.com/s/1D-CMz44Zgz174Q5xPrnlWw</a></p>
@@ -92,30 +102,6 @@
       <tags>
         <tag>教程</tag>
         <tag>图像处理</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Hello World</title>
-    <url>/2024/10/29/hello-world/</url>
-    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-]]></content>
-      <categories>
-        <category>自我介绍</category>
-      </categories>
-      <tags>
-        <tag>自我介绍</tag>
       </tags>
   </entry>
   <entry>
@@ -594,6 +580,27 @@
       <tags>
         <tag>教程</tag>
         <tag>OpenSim</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>自我介绍</title>
+    <url>/2024/10/29/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+]]></content>
+      <tags>
+        <tag>自我介绍</tag>
       </tags>
   </entry>
 </search>
