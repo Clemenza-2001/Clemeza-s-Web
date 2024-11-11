@@ -1,617 +1,167 @@
-<?xml version="1.0" encoding="utf-8"?>
-<search>
-  <entry>
-    <title>Matlab基于SIFT的图像特征匹配与拼接算法</title>
-    <url>/2024/11/04/Matlab%E5%9F%BA%E4%BA%8ESIFT%E7%9A%84%E5%9B%BE%E5%83%8F%E7%89%B9%E5%BE%81%E5%8C%B9%E9%85%8D%E4%B8%8E%E6%8B%BC%E6%8E%A5%E7%AE%97%E6%B3%95/</url>
-    <content><![CDATA[<h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><p>SIFT算法作为图像局部特征的里程碑式发明被广泛应用于各个领域，David Lowe的思想简单却深邃。网上能够直接在Matlab里面使用的算法很少，于是在这里简单介绍一下原理，然后实战。总的demo文件放在最后。</p>
-<h3 id="SIFT算法简介"><a href="#SIFT算法简介" class="headerlink" title="SIFT算法简介"></a>SIFT算法简介</h3><p>**<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E5%B0%BA%E5%BA%A6%E4%B8%8D%E5%8F%98%E7%89%B9%E5%BE%81%E8%BD%AC%E6%8D%A2&zhida_source=entity">尺度不变特征转换</a>(SIFT, Scale Invariant Feature Transform)**是图像处理领域中的一种局部特征描述算法。是由David G. Lowe教授在1999年（《Object Recognition from Local Scale-Invariant Features》）提出的高效区域检测算法，在2004年（《Distinctive Image Features from Scale-Invariant Key points》）得以完善。该方法于1999年由加拿大教授David G.Lowe提出，申请了专利，其专利属于英属哥伦比亚大学. SIFT专利在2020年3月17日之后到期，现在只需更新cv版本即可免费使用。</p>
-<p>SIFT算法不仅只有<strong>尺度不变性</strong>，当旋转图像，改变图像亮度，移动拍摄位置时，仍可得到较好的检测效果。其实，在我们生活中，SIFT算法还是有所应用的，比如，我们手机上的全景拍摄，当我们拿着手机旋转拍摄时，就可以得到一幅全景图，大家想过没有，手机摄像头的视角是确定的，为什么通过旋转拍摄时，角度就变大了呢？其实角度并没有变化，只是我们在旋转拍摄时，拍摄了很多的图像，这些图像相邻之间有重叠部分，把这些图像合在一起，去除重叠部分，就可以得到一幅全景图。</p>
-<p>SIFT算法网址：</p>
-<p><a href="https://link.zhihu.com/?target=https://www.cs.ubc.ca/~lowe/keypoints/">https://www.cs.ubc.ca/<del>lowe&#x2F;keypoints&#x2F;www.cs.ubc.ca/</del>lowe&#x2F;keypoints&#x2F;</a></p>
-<p>这是David G. Lowe教授的SIFT算法Demo，在后面实战中是根据这个<strong>改进</strong>的。</p>
-<p><img src="https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg" alt="img"></p>
-<center>图1 SIFT demo下载网站（点击红框处下载）</center>
-
-<h3 id="SIFT算法原理"><a href="#SIFT算法原理" class="headerlink" title="SIFT算法原理"></a><strong>SIFT算法原理</strong></h3><p>David lowe在2004年的文章 Distinctive Image Features from Scale-Invariant Keypoints 中总结了SIFT特征检测算法的四个主要步骤：</p>
-<p><strong>a.</strong> <strong>尺度空间的极值检测(Scale-space extrema detection)</strong></p>
-<p>检测尺度空间极值就是搜索所有尺度上的图像位置，通过高斯微分函数来识别对于尺度和旋转不变的兴趣点。其主要步骤可以分为建立<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E9%AB%98%E6%96%AF%E9%87%91%E5%AD%97%E5%A1%94&zhida_source=entity">高斯金字塔</a>、生成<strong>DOG高斯差分金字塔</strong>和<strong>DOG局部极值点检测</strong>。</p>
-<p>图2右侧是高斯金字塔中同一Octave的不同卷积核卷积图像的差分得到的图像集。因为是差分得到的图像，故每个Octave相较于高斯金字塔中Octave数量上会减少一张。因为差分得到的图像集也是垂直方向分布，形状类似于金字塔，故被称作 “<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=2&q=%E9%AB%98%E6%96%AF%E5%B7%AE%E5%88%86%E9%87%91%E5%AD%97%E5%A1%94&zhida_source=entity">高斯差分金字塔</a>”。</p>
-<p><img src="https://pica.zhimg.com/v2-64eaaa30fb86a404bda9f81ce689c8fe_1440w.jpg" alt="img"></p>
-<center>图2 高斯差分图</center>
-
-<p>特征点是由DOG空间的局部极值点组成的。为了寻找DOG函数的极值点，每一个像素点要和它所有的相邻点比较，看其是否比它的图像域和尺度域的相邻点大或者小<strong>。SIFT算法选择高斯差分金字塔中的极值点作为代表图像特征的关键点。</strong>需要注意的是：这里所说的极值点不仅仅是在一幅图像中像素值为极值的点，而是该点像素值对于与其同图像的八邻域和上一张图像相同位置点以及八邻域、下一张图像相同位置点以及八邻域共计26个像素值为局部极值。（如下图所示，中心黑色叉点为中心点，其将与周围共计26个绿色标记点比较确定是否为极值点）</p>
-<p><img src="https://pic1.zhimg.com/v2-7d0d1a3be1760f092b16e102c7a876c6_1440w.jpg" alt="img"></p>
-<center>图3 局部极值点检测</center>
-
-<p><strong>b.</strong> <strong>关键点精确定位(Keypoint localization)</strong></p>
-<p>为提高图像特征点对噪声的<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E9%B2%81%E6%A3%92%E6%80%A7&zhida_source=entity">鲁棒性</a>，SIFT算法的通常做法是对比测试和边缘测试。</p>
-<p>对比测试是指为解决对比度较低的极值点，对所有极值点进行二阶泰勒展开（second-order Taylor expansion）。如果结果值小于0.03，则剔除该关键点。边缘测试是指使用二阶Hessian矩阵来识别具有高边缘度但对少量噪声没有鲁棒性的关键点。</p>
-<p><strong>c.</strong> <strong>关键点主方向分配(Orientation assignment)</strong></p>
-<p>在建立高斯差分金字塔以选取图像特征点时，算法考虑了关键点的尺度不变性。而对于图像特征而言，与尺度不变性同等重要的还有旋转不变性。为使算法定义的图像特征具有旋转不变性，我们需要在定位特征点后对特征点定义 “主方向”，该“主方向”生成特征点周围的局部区域的梯度方向基准，使图像在旋转后仍能与旋转前保持相同的特征描述。</p>
-<p>算法将关键点指定大小领域中的所有点计算梯度方向与赋值，并统计所有梯度方向对应的赋值和，作关键点周围i邻域梯度方向直方图。</p>
-<p>图4右侧梯度方向直方图为简化版本（只有8个bin，实际操作时算法会统计从0到360°步长为10°的共计36个梯度方向的幅值和，共有36个bin）。梯度方向直方图中最高的bin对应的方向即定义为该关键点的主方向，若存在任一方向的幅值大于主方向幅值的80%，则将其作为辅方向。</p>
-<p>获得图像关键点主方向后，每个关键点有三个信息(x,y,σ,θ)：位置（x,y)、尺度σ、方向θ。</p>
-<p><img src="https://pic3.zhimg.com/v2-e58eca6746289f441b3238012e5cc602_1440w.jpg" alt="img"></p>
-<center>图4 局部极值点检测</center>
-
-<p><strong>d.</strong> <strong>关键点描述子的生成(Keypoint descriptor)</strong></p>
-<p>得到特征点二维位置、尺度位置、主方向的具体信息后，算法需要解决的最后一个问题就是生成关键点信息的描述子，即用一个向量描述图像中的特征点信息。</p>
-<p>算法将特征点周围的1616邻域分为4个88的区域，再将88的区域划为22区域，即每个小区域为44的范围。统计每个44区域的<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=4&q=%E6%A2%AF%E5%BA%A6%E6%96%B9%E5%90%91%E7%9B%B4%E6%96%B9%E5%9B%BE&zhida_source=entity">梯度方向直方图</a>（直方图为8个bin），故共计448&#x3D;128个bin（每个1616邻域有44个44邻域，每个44邻域有8个bin）。对应生成128维向量（值为梯度方向的幅值）。该128维向量即该点的特征描述子。</p>
-<p><img src="https://pica.zhimg.com/v2-71d6348e3ff8637ccf21d7886433f53e_1440w.jpg" alt="img"></p>
-<center>图5 关键点描述子的生成</center>
-
-<h3 id="SIFT代码实战"><a href="#SIFT代码实战" class="headerlink" title="SIFT代码实战"></a><strong>SIFT代码实战</strong></h3><p>*<strong>1-sift.m 检测特征点(返回图像的SIFT特征点)+构建特征点描述子*</strong></p>
-<figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line"><span class="comment">% [descriptors, locs] = sift(img)</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">% This function returns IMAGE&#x27;s SIFT keypoints.</span></span><br><span class="line"><span class="comment">%   Input parameters:</span></span><br><span class="line"><span class="comment">%     img: the image.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">%   Returned:</span></span><br><span class="line"><span class="comment">%     descriptors: a K-by-128 matrix, where each row gives an invariant</span></span><br><span class="line"><span class="comment">%         descriptor for one of the K keypoints.  The descriptor is a vector</span></span><br><span class="line"><span class="comment">%         of 128 values normalized to unit length.</span></span><br><span class="line"><span class="comment">%     locs: K-by-4 matrix, in which each row has the 4 values for a</span></span><br><span class="line"><span class="comment">%         keypoint location (row, column, scale, orientation).  The </span></span><br><span class="line"><span class="comment">%         orientation is in the range [-PI, PI] radians.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">% Credits: Thanks for initial version of this program to D. Alvaro and </span></span><br><span class="line"><span class="comment">%          J.J. Guerrero, Universidad de Zaragoza (modified by D. Lowe)</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="params">[descriptors, locs]</span> = <span class="title">sift</span><span class="params">(img)</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">% If you have the Image Processing Toolbox, you can uncomment the following</span></span><br><span class="line"><span class="comment">%   lines to allow input of color images, which will be converted to grayscale.</span></span><br><span class="line"><span class="keyword">if</span> <span class="built_in">size</span>(img,<span class="number">3</span>)</span><br><span class="line">   img = rgb2gray(img);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line">[rows, cols] = <span class="built_in">size</span>(img); </span><br><span class="line"></span><br><span class="line"><span class="comment">% Convert into PGM imagefile, readable by &quot;keypoints&quot; executable</span></span><br><span class="line">f = fopen(<span class="string">&#x27;tmp.pgm&#x27;</span>, <span class="string">&#x27;w&#x27;</span>);</span><br><span class="line"><span class="keyword">if</span> f == <span class="number">-1</span></span><br><span class="line">    error(<span class="string">&#x27;Could not create file tmp.pgm.&#x27;</span>);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">fprintf(f, <span class="string">&#x27;P5\n%d\n%d\n255\n&#x27;</span>, cols, rows);</span><br><span class="line">fwrite(f, img&#x27;, <span class="string">&#x27;uint8&#x27;</span>);</span><br><span class="line">fclose(f);</span><br><span class="line"></span><br><span class="line"><span class="comment">% Call keypoints executable</span></span><br><span class="line"><span class="keyword">if</span> isunix</span><br><span class="line">    command = <span class="string">&#x27;./sift &#x27;</span>;</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">    command = <span class="string">&#x27;siftWin32 &#x27;</span>;</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">command = [command <span class="string">&#x27; &lt;tmp.pgm &gt;tmp.key&#x27;</span>];</span><br><span class="line">system(sprintf(command));</span><br><span class="line"></span><br><span class="line"><span class="comment">% Open tmp.key and check its header</span></span><br><span class="line">g = fopen(<span class="string">&#x27;tmp.key&#x27;</span>, <span class="string">&#x27;r&#x27;</span>);</span><br><span class="line"><span class="keyword">if</span> g == <span class="number">-1</span></span><br><span class="line">    error(<span class="string">&#x27;Could not open file tmp.key.&#x27;</span>);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">[header, count] = fscanf(g, <span class="string">&#x27;%d %d&#x27;</span>, [<span class="number">1</span> <span class="number">2</span>]);</span><br><span class="line"><span class="keyword">if</span> count ~= <span class="number">2</span></span><br><span class="line">    error(<span class="string">&#x27;Invalid keypoint file beginning.&#x27;</span>);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">num = header(<span class="number">1</span>);</span><br><span class="line">len = header(<span class="number">2</span>);</span><br><span class="line"><span class="keyword">if</span> len ~= <span class="number">128</span></span><br><span class="line">    error(<span class="string">&#x27;Keypoint descriptor length invalid (should be 128).&#x27;</span>);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">% Creates the two output matrices (use known size for efficiency)</span></span><br><span class="line">locs = double(<span class="built_in">zeros</span>(num, <span class="number">4</span>));</span><br><span class="line">descriptors = double(<span class="built_in">zeros</span>(num, <span class="number">128</span>));</span><br><span class="line"></span><br><span class="line"><span class="comment">% Parse tmp.key</span></span><br><span class="line"><span class="keyword">for</span> <span class="built_in">i</span> = <span class="number">1</span>:num</span><br><span class="line">    [vector, count] = fscanf(g, <span class="string">&#x27;%f %f %f %f&#x27;</span>, [<span class="number">1</span> <span class="number">4</span>]); <span class="comment">%row col scale ori</span></span><br><span class="line">    <span class="keyword">if</span> count ~= <span class="number">4</span></span><br><span class="line">        error(<span class="string">&#x27;Invalid keypoint file format&#x27;</span>);</span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line">    locs(<span class="built_in">i</span>, :) = vector(<span class="number">1</span>, :);</span><br><span class="line">    </span><br><span class="line">    [descrip, count] = fscanf(g, <span class="string">&#x27;%d&#x27;</span>, [<span class="number">1</span> len]);</span><br><span class="line">    <span class="keyword">if</span> (count ~= <span class="number">128</span>)</span><br><span class="line">        error(<span class="string">&#x27;Invalid keypoint file value.&#x27;</span>);</span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line">    <span class="comment">% Normalize each input vector to unit length</span></span><br><span class="line">    descrip = descrip / <span class="built_in">sqrt</span>(sum(descrip.^<span class="number">2</span>));</span><br><span class="line">    descriptors(<span class="built_in">i</span>, :) = descrip(<span class="number">1</span>, :);</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="comment">%delete tmp.key</span></span><br><span class="line">fclose(g);</span><br></pre></td></tr></table></figure>
-
-<p>*<strong>2-siftMatch.m 读入两幅图像，寻找它们的SIFT特征，显示相互匹配的特征点的连线*</strong></p>
-<figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line"><span class="comment">% [matchLoc1 matchLoc2] = siftMatch(img1, img2)</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">% This function reads two images, finds their SIFT features, and</span></span><br><span class="line"><span class="comment">%   displays lines connecting the matched keypoints.  A match is accepted</span></span><br><span class="line"><span class="comment">%   only if its distance is less than distRatio times the distance to the</span></span><br><span class="line"><span class="comment">%   second closest match.</span></span><br><span class="line"><span class="comment">% It returns the matched points of both images, matchLoc1 = [x1,y1;x2,y2;...]</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">% Example: match(&#x27;scene.pgm&#x27;,&#x27;book.pgm&#x27;);</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="params">[matchLoc1 matchLoc2]</span> = <span class="title">siftMatch</span><span class="params">(img1, img2)</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">% load matchdata</span></span><br><span class="line"><span class="comment">% load img1data</span></span><br><span class="line"><span class="comment">% load img2data</span></span><br><span class="line"><span class="comment">%&#123;,</span></span><br><span class="line"><span class="comment">% Find SIFT keypoints for each image</span></span><br><span class="line">[des1, loc1] = sift(img1);</span><br><span class="line">[des2, loc2] = sift(img2);</span><br><span class="line"><span class="comment">% save img1data des1 loc1</span></span><br><span class="line"><span class="comment">% save img2data des2 loc2</span></span><br><span class="line"></span><br><span class="line"><span class="comment">% For efficiency in Matlab, it is cheaper to compute dot products between</span></span><br><span class="line"><span class="comment">%  unit vectors rather than Euclidean distances.  Note that the ratio of </span></span><br><span class="line"><span class="comment">%  angles (acos of dot products of unit vectors) is a close approximation</span></span><br><span class="line"><span class="comment">%  to the ratio of Euclidean distances for small angles.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">% distRatio: Only keep matches in which the ratio of vector angles from the</span></span><br><span class="line"><span class="comment">%   nearest to second nearest neighbor is less than distRatio.</span></span><br><span class="line">distRatio = <span class="number">0.6</span>;   </span><br><span class="line"></span><br><span class="line"><span class="comment">% For each descriptor in the first image, select its match to second image.</span></span><br><span class="line">des2t = des2&#x27;;                          <span class="comment">% Precompute matrix transpose</span></span><br><span class="line">matchTable = <span class="built_in">zeros</span>(<span class="number">1</span>,<span class="built_in">size</span>(des1,<span class="number">1</span>));</span><br><span class="line"><span class="keyword">for</span> <span class="built_in">i</span> = <span class="number">1</span> : <span class="built_in">size</span>(des1,<span class="number">1</span>)</span><br><span class="line">   dotprods = des1(<span class="built_in">i</span>,:) * des2t;        <span class="comment">% Computes vector of dot products</span></span><br><span class="line">   [vals,indx] = <span class="built_in">sort</span>(<span class="built_in">acos</span>(dotprods));  <span class="comment">% Take inverse cosine and sort results</span></span><br><span class="line"></span><br><span class="line">   <span class="comment">% Check if nearest neighbor has angle less than distRatio times 2nd.</span></span><br><span class="line">   <span class="keyword">if</span> (vals(<span class="number">1</span>) &lt; distRatio * vals(<span class="number">2</span>))</span><br><span class="line">      matchTable(<span class="built_in">i</span>) = indx(<span class="number">1</span>);</span><br><span class="line">   <span class="keyword">else</span></span><br><span class="line">      matchTable(<span class="built_in">i</span>) = <span class="number">0</span>;</span><br><span class="line">   <span class="keyword">end</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="comment">% save matchdata matchTable</span></span><br><span class="line"><span class="comment">%&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">% Create a new image showing the two images side by side.</span></span><br><span class="line">img3 = appendimages(img1,img2);</span><br><span class="line"></span><br><span class="line"><span class="comment">% Show a figure with lines joining the accepted matches.</span></span><br><span class="line"><span class="built_in">figure</span>(<span class="string">&#x27;Position&#x27;</span>, [<span class="number">100</span> <span class="number">100</span> <span class="built_in">size</span>(img3,<span class="number">2</span>) <span class="built_in">size</span>(img3,<span class="number">1</span>)]);</span><br><span class="line">colormap(<span class="string">&#x27;gray&#x27;</span>);</span><br><span class="line">imagesc(img3);</span><br><span class="line"><span class="built_in">hold</span> on;</span><br><span class="line">cols1 = <span class="built_in">size</span>(img1,<span class="number">2</span>);</span><br><span class="line"><span class="keyword">for</span> <span class="built_in">i</span> = <span class="number">1</span>: <span class="built_in">size</span>(des1,<span class="number">1</span>)</span><br><span class="line">  <span class="keyword">if</span> (matchTable(<span class="built_in">i</span>) &gt; <span class="number">0</span>)</span><br><span class="line">    line([loc1(<span class="built_in">i</span>,<span class="number">2</span>) loc2(matchTable(<span class="built_in">i</span>),<span class="number">2</span>)+cols1], ...</span><br><span class="line">         [loc1(<span class="built_in">i</span>,<span class="number">1</span>) loc2(matchTable(<span class="built_in">i</span>),<span class="number">1</span>)], <span class="string">&#x27;Color&#x27;</span>, <span class="string">&#x27;c&#x27;</span>);</span><br><span class="line">  <span class="keyword">end</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="built_in">hold</span> off;</span><br><span class="line">num = sum(matchTable &gt; <span class="number">0</span>);</span><br><span class="line">fprintf(<span class="string">&#x27;Found %d matches.\n&#x27;</span>, num);</span><br><span class="line"></span><br><span class="line">idx1 = <span class="built_in">find</span>(matchTable);</span><br><span class="line">idx2 = matchTable(idx1);</span><br><span class="line">x1 = loc1(idx1,<span class="number">2</span>);</span><br><span class="line">x2 = loc2(idx2,<span class="number">2</span>);</span><br><span class="line">y1 = loc1(idx1,<span class="number">1</span>);</span><br><span class="line">y2 = loc2(idx2,<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">matchLoc1 = [x1,y1];</span><br><span class="line">matchLoc2 = [x2,y2];</span><br><span class="line"></span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
-
-<p>*<strong>3-ransac1.m RANSAC算法进行<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E5%9B%BE%E5%83%8F%E9%85%8D%E5%87%86&zhida_source=entity">图像配准</a>*</strong></p>
-<p>在进行两幅或多幅图像间的镶嵌及配准时，通常情况下都会有一个参考图像或者基准图像作为处理的标准。其中就需要建立原始图像到参考图像的变换模型，而模型参数的稳健估计就成了关键技术之一。在实际问题中，得到的数据往往并不是完全准确的，常常伴随着许多异常数据，于是问题的关键在于如何处理不符合实际模型的异常数据。</p>
-<p><img src="https://pica.zhimg.com/v2-8e74180184ef20596a5209385fc6269e_1440w.jpg" alt="img"></p>
-<center>图3 左图：包含很多局外点的数据集；右图：RANSAC找到的直线（局外点并不影响结果）</center>
-
-<p>一个简单的例子是从一组观测数据中找出合适的2维直线。假设观测数据中包含局内点和局外点，其中局内点近似的被直线所通过，而局外点远离于直线。简单的最小二乘法不能找到适应于局内点的直线，原因是最小二乘法尽量去适应包括局外点在内的所有点。相反，RANSAC能得出一个仅仅用局内点计算出模型，并且概率还足够高。但是，RANSAC并不能保证结果一定正确，为了保证算法有足够高的合理概率，我们必须小心的选择算法的参数。</p>
-<p>RANSAC只能从特定的数据集中估计出一个模型，如果存在两个（或多个）模型，RANSAC不能找到别的模型。</p>
-<figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="params">[f inlierIdx]</span> = <span class="title">ransac1</span><span class="params">( x,y,ransacCoef,funcFindF,funcDist )</span></span></span><br><span class="line"><span class="comment">%[f inlierIdx] = ransac1( x,y,ransacCoef,funcFindF,funcDist )</span></span><br><span class="line"><span class="comment">%	Use RANdom SAmple Consensus to find a fit from X to Y.</span></span><br><span class="line"><span class="comment">%	X is M*n matrix including n points with dim M, Y is N*n;</span></span><br><span class="line"><span class="comment">%	The fit, f, and the indices of inliers, are returned.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">%	RANSACCOEF is a struct with following fields:</span></span><br><span class="line"><span class="comment">%	minPtNum,iterNum,thDist,thInlrRatio</span></span><br><span class="line"><span class="comment">%	MINPTNUM is the minimum number of points with whom can we </span></span><br><span class="line"><span class="comment">%	find a fit. For line fitting, it&#x27;s 2. For homography, it&#x27;s 4.</span></span><br><span class="line"><span class="comment">%	ITERNUM is the number of iteration, THDIST is the inlier </span></span><br><span class="line"><span class="comment">%	distance threshold and ROUND(THINLRRATIO*n) is the inlier number threshold.</span></span><br><span class="line"><span class="comment">%</span></span><br><span class="line"><span class="comment">%	FUNCFINDF is a func handle, f1 = funcFindF(x1,y1)</span></span><br><span class="line"><span class="comment">%	x1 is M*n1 and y1 is N*n1, n1 &gt;= ransacCoef.minPtNum</span></span><br><span class="line"><span class="comment">%	f1 can be of any type.</span></span><br><span class="line"><span class="comment">%	FUNCDIST is a func handle, d = funcDist(f,x1,y1)</span></span><br><span class="line"><span class="comment">%	It uses f returned by FUNCFINDF, and return the distance</span></span><br><span class="line"><span class="comment">%	between f and the points, d is 1*n1.</span></span><br><span class="line"><span class="comment">%	For line fitting, it should calculate the dist between the line and the</span></span><br><span class="line"><span class="comment">%	points [x1;y1]; for homography, it should project x1 to y2 then</span></span><br><span class="line"><span class="comment">%	calculate the dist between y1 and y2.</span></span><br><span class="line">minPtNum = ransacCoef.minPtNum;</span><br><span class="line">iterNum = ransacCoef.iterNum;</span><br><span class="line">thInlrRatio = ransacCoef.thInlrRatio;</span><br><span class="line">thDist = ransacCoef.thDist;</span><br><span class="line">ptNum = <span class="built_in">size</span>(x,<span class="number">2</span>);</span><br><span class="line">thInlr = <span class="built_in">round</span>(thInlrRatio*ptNum);</span><br><span class="line"></span><br><span class="line">inlrNum = <span class="built_in">zeros</span>(<span class="number">1</span>,iterNum);</span><br><span class="line">fLib = cell(<span class="number">1</span>,iterNum);</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> p = <span class="number">1</span>:iterNum</span><br><span class="line">	<span class="comment">% 1. fit using  random points</span></span><br><span class="line">	sampleIdx = randIndex(ptNum,minPtNum);</span><br><span class="line">	f1 = funcFindF(x(:,sampleIdx),y(:,sampleIdx));</span><br><span class="line">	</span><br><span class="line">	<span class="comment">% 2. count the inliers, if more than thInlr, refit; else iterate</span></span><br><span class="line">	dist = funcDist(f1,x,y);</span><br><span class="line">	inlier1 = <span class="built_in">find</span>(dist &lt; thDist);</span><br><span class="line">	inlrNum(p) = <span class="built_in">length</span>(inlier1);</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">length</span>(inlier1) &lt; thInlr, <span class="keyword">continue</span>; <span class="keyword">end</span></span><br><span class="line">	fLib&#123;p&#125; = funcFindF(x(:,inlier1),y(:,inlier1));</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">% 3. choose the coef with the most inliers</span></span><br><span class="line">[~,idx] = <span class="built_in">max</span>(inlrNum);</span><br><span class="line">f = fLib&#123;idx&#125;;</span><br><span class="line">dist = funcDist(f,x,y);</span><br><span class="line">inlierIdx = <span class="built_in">find</span>(dist &lt; thDist);</span><br><span class="line">	</span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
-
-<p>*<strong>4-solveHomo.m 图像配准—单应矩阵求解*</strong></p>
-<p>为了实现影像匹配，在提取特征点后，变换矩阵H的求解是图像配准的核心。主要用到RANSAC函数迭代精炼H变换矩阵。</p>
-<p>函数solveHomo和函数calcDist在RANSAC函数中被反复调用，最终得到最优点及对应的单应矩阵H。</p>
-<p>在实际计算中仍把单应性矩阵作为9个元素来处理，这是由于<a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E9%BD%90%E6%AC%A1%E5%9D%90%E6%A0%87&zhida_source=entity">齐次坐标</a>变换之后仍需归一化得到实际坐标，因此对应点组数n至少需要5个，才能保证方程组有解。</p>
-<figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">H</span> = <span class="title">solveHomo</span><span class="params">(pts1,pts2)</span></span></span><br><span class="line"><span class="comment">%	H is 3*3, H*[pts1(:,i);1] ~ [pts2(:,i);1], H(3,3) = 1</span></span><br><span class="line"><span class="comment">%	the solving method see &quot;projective-Seitz-UWCSE.ppt&quot;</span></span><br><span class="line"></span><br><span class="line">n = <span class="built_in">size</span>(pts1,<span class="number">2</span>);</span><br><span class="line">A = <span class="built_in">zeros</span>(<span class="number">2</span>*n,<span class="number">9</span>);</span><br><span class="line">A(<span class="number">1</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">1</span>:<span class="number">2</span>) = pts1&#x27;;</span><br><span class="line">A(<span class="number">1</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">3</span>) = <span class="number">1</span>;</span><br><span class="line">A(<span class="number">2</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">4</span>:<span class="number">5</span>) = pts1&#x27;;</span><br><span class="line">A(<span class="number">2</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">6</span>) = <span class="number">1</span>;</span><br><span class="line">x1 = pts1(<span class="number">1</span>,:)&#x27;;</span><br><span class="line">y1 = pts1(<span class="number">2</span>,:)&#x27;;</span><br><span class="line">x2 = pts2(<span class="number">1</span>,:)&#x27;;</span><br><span class="line">y2 = pts2(<span class="number">2</span>,:)&#x27;;</span><br><span class="line">A(<span class="number">1</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">7</span>) = -x2.*x1;</span><br><span class="line">A(<span class="number">2</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">7</span>) = -y2.*x1;</span><br><span class="line">A(<span class="number">1</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">8</span>) = -x2.*y1;</span><br><span class="line">A(<span class="number">2</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">8</span>) = -y2.*y1;</span><br><span class="line">A(<span class="number">1</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">9</span>) = -x2;</span><br><span class="line">A(<span class="number">2</span>:<span class="number">2</span>:<span class="number">2</span>*n,<span class="number">9</span>) = -y2;</span><br><span class="line"></span><br><span class="line">[evec,~] = eig(A&#x27;*A);</span><br><span class="line">H = <span class="built_in">reshape</span>(evec(:,<span class="number">1</span>),[<span class="number">3</span>,<span class="number">3</span>])&#x27;;</span><br><span class="line">H = H/H(<span class="keyword">end</span>); <span class="comment">% make H(3,3) = 1</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
-
-<p>*<strong>5-imMosaic.m 图像合成*</strong></p>
-<p>由于普通的相机在拍摄照片时会自动选取曝光参数，这会使输入图像之间存在亮度差异，导致拼接后图像缝合线两端出现明显的明暗变化。因此，在融合过程中需要对缝合线进行处理，以平滑两幅图像两端的明暗差异。进行图像拼接缝合线的方法有很多种，如颜色插值和多分辨率样条技术等，本次研究使用了快速简单的加权平滑算法处理拼接缝问题。</p>
-<p>图像重叠区域中像素点的灰度值Pixel由两幅图像对应点的灰度值Pixel_L和Pixel_R加权均得到，即Pixel&#x3D;k*Pixel_L+(1-k)*Pixel_R。其中k是可调因子。通常情况下，0&lt;k&lt;1，即在重叠区域中，沿图像1向图像2的方向，k由1渐变为0，从而实现重叠区域的平滑拼接。为使图像重叠区域中的点与两幅图像建立更大的相关性，令k&#x3D;d1&#x2F;(d1+d2)，其中d1，d2分别表示重叠区域中的点到两幅图像重叠区域的左边界和右边界的距离，即用公式Pixel&#x3D;d1&#x2F;(d1+d2)*Pixel_L+d2&#x2F;(d1+d2)*Pixel_R，进行缝合线处理。</p>
-<p>此部分主要包括两个部分：</p>
-<p><strong>·</strong>拼接前对图像1的灰度值向图像2一次线性拟合；</p>
-<p><strong>·</strong>匹配后的图像1和图像21进行拼接。</p>
-<figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="params">[ imgout ]</span> = <span class="title">imMosaic</span><span class="params">( img1,img2,adjColor )</span></span></span><br><span class="line"><span class="comment">%[ imgout ] = imMosaic( img1,img2,adjColor )</span></span><br><span class="line"><span class="comment">%	img1 and img2 can (both) be rgb or gray, double or uint8.</span></span><br><span class="line"><span class="comment">%	If you have more than 2 images to do mosaic, call this function several</span></span><br><span class="line"><span class="comment">%	times.</span></span><br><span class="line"><span class="comment">%	If you set adjColor to 1, imMosaic will try to try to adjust the</span></span><br><span class="line"><span class="comment">%	color(for rgb) or grayscale(for gray image) of img1 linearly, so the 2 </span></span><br><span class="line"><span class="comment">%	images can join more naturally.</span></span><br><span class="line"><span class="comment">%	Yan Ke @ THUEE, 20110123, xjed09@gmail.com</span></span><br><span class="line"></span><br><span class="line"><span class="comment">% use SIFT to find corresponding points</span></span><br><span class="line">[matchLoc1, matchLoc2] = siftMatch(img1, img2);</span><br><span class="line"></span><br><span class="line"><span class="comment">% use RANSAC to find homography matrix</span></span><br><span class="line">[H, corrPtIdx] = findHomography(matchLoc2&#x27;,matchLoc1&#x27;);</span><br><span class="line">H  <span class="comment">%#ok</span></span><br><span class="line">tform = maketform(<span class="string">&#x27;projective&#x27;</span>,H&#x27;);</span><br><span class="line">img21 = imtransform(img2,tform); <span class="comment">% reproject img2</span></span><br><span class="line"><span class="built_in">figure</span>,imshow(img1)</span><br><span class="line"><span class="built_in">figure</span>,imshow(img21)</span><br><span class="line"></span><br><span class="line"><span class="comment">% adjust color or grayscale linearly, using corresponding infomation</span></span><br><span class="line">[M1, N1, dim] = <span class="built_in">size</span>(img1);</span><br><span class="line">[M2, N2, ~] = <span class="built_in">size</span>(img2);</span><br><span class="line"><span class="keyword">if</span> exist(<span class="string">&#x27;adjColor&#x27;</span>,<span class="string">&#x27;var&#x27;</span>) &amp;&amp; adjColor == <span class="number">1</span></span><br><span class="line">	radius = <span class="number">2</span>;</span><br><span class="line">	x1ctrl = matchLoc1(corrPtIdx,<span class="number">1</span>);</span><br><span class="line">	y1ctrl = matchLoc1(corrPtIdx,<span class="number">2</span>);</span><br><span class="line">	x2ctrl = matchLoc2(corrPtIdx,<span class="number">1</span>);</span><br><span class="line">	y2ctrl = matchLoc2(corrPtIdx,<span class="number">2</span>);</span><br><span class="line">	ctrlLen = <span class="built_in">length</span>(corrPtIdx);</span><br><span class="line">	s1 = <span class="built_in">zeros</span>(<span class="number">1</span>,ctrlLen);</span><br><span class="line">	s2 = <span class="built_in">zeros</span>(<span class="number">1</span>,ctrlLen);</span><br><span class="line">	<span class="keyword">for</span> color = <span class="number">1</span>:dim</span><br><span class="line">		<span class="keyword">for</span> p = <span class="number">1</span>:ctrlLen</span><br><span class="line">			left = <span class="built_in">round</span>(<span class="built_in">max</span>(<span class="number">1</span>,x1ctrl(p)-radius));</span><br><span class="line">			right = <span class="built_in">round</span>(<span class="built_in">min</span>(N1,left+radius+<span class="number">1</span>));</span><br><span class="line">			up = <span class="built_in">round</span>(<span class="built_in">max</span>(<span class="number">1</span>,y1ctrl(p)-radius));</span><br><span class="line">			down = <span class="built_in">round</span>(<span class="built_in">min</span>(M1,up+radius+<span class="number">1</span>));</span><br><span class="line">			s1(p) = sum(sum(img1(up:down,left:right,color))); <span class="comment">% ȡ���ܵ�ɫ��</span></span><br><span class="line">		<span class="keyword">end</span></span><br><span class="line">		<span class="keyword">for</span> p = <span class="number">1</span>:ctrlLen</span><br><span class="line">			left = <span class="built_in">round</span>(<span class="built_in">max</span>(<span class="number">1</span>,x2ctrl(p)-radius));</span><br><span class="line">			right = <span class="built_in">round</span>(<span class="built_in">min</span>(N2,left+radius+<span class="number">1</span>));</span><br><span class="line">			up = <span class="built_in">round</span>(<span class="built_in">max</span>(<span class="number">1</span>,y2ctrl(p)-radius));</span><br><span class="line">			down = <span class="built_in">round</span>(<span class="built_in">min</span>(M2,up+radius+<span class="number">1</span>));</span><br><span class="line">			s2(p) = sum(sum(img2(up:down,left:right,color)));</span><br><span class="line">		<span class="keyword">end</span></span><br><span class="line">		sc = (radius*<span class="number">2</span>+<span class="number">1</span>)^<span class="number">2</span>*ctrlLen;</span><br><span class="line">		adjcoef = polyfit(s1/sc,s2/sc,<span class="number">1</span>);</span><br><span class="line">		img1(:,:,color) = img1(:,:,color)*adjcoef(<span class="number">1</span>)+adjcoef(<span class="number">2</span>);</span><br><span class="line">	<span class="keyword">end</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">% do the mosaic</span></span><br><span class="line">pt = <span class="built_in">zeros</span>(<span class="number">3</span>,<span class="number">4</span>);</span><br><span class="line">pt(:,<span class="number">1</span>) = H*[<span class="number">1</span>;<span class="number">1</span>;<span class="number">1</span>];</span><br><span class="line">pt(:,<span class="number">2</span>) = H*[N2;<span class="number">1</span>;<span class="number">1</span>];</span><br><span class="line">pt(:,<span class="number">3</span>) = H*[N2;M2;<span class="number">1</span>];</span><br><span class="line">pt(:,<span class="number">4</span>) = H*[<span class="number">1</span>;M2;<span class="number">1</span>];</span><br><span class="line">x2 = pt(<span class="number">1</span>,:)./pt(<span class="number">3</span>,:);</span><br><span class="line">y2 = pt(<span class="number">2</span>,:)./pt(<span class="number">3</span>,:);</span><br><span class="line"></span><br><span class="line">up = <span class="built_in">round</span>(<span class="built_in">min</span>(y2));</span><br><span class="line">Yoffset = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">if</span> up &lt;= <span class="number">0</span></span><br><span class="line">	Yoffset = -up+<span class="number">1</span>;</span><br><span class="line">	up = <span class="number">1</span>;</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line">left = <span class="built_in">round</span>(<span class="built_in">min</span>(x2));</span><br><span class="line">Xoffset = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">if</span> left&lt;=<span class="number">0</span></span><br><span class="line">	Xoffset = -left+<span class="number">1</span>;</span><br><span class="line">	left = <span class="number">1</span>;</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line">[M3, N3 ,~] = <span class="built_in">size</span>(img21);</span><br><span class="line">imgout(up:up+M3<span class="number">-1</span>,left:left+N3<span class="number">-1</span>,:) = img21;</span><br><span class="line">	<span class="comment">% img1 is above img21</span></span><br><span class="line">imgout(Yoffset+<span class="number">1</span>:Yoffset+M1,Xoffset+<span class="number">1</span>:Xoffset+N1,:) = img1;</span><br><span class="line"></span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
-
-<p>*<strong>6-findHomography.m 单应性矩阵计算函数*</strong></p>
-<p>findHomography: 计算多个二维点对之间的最优单映射变换矩阵H(3行3列)，使用最小均方误差或RANSAC方法。函数功能：该函数能够找到并返回源平面和目标平面之间的转换矩阵H，以便于反向投影错误率达到最小。</p>
-<figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="params">[H corrPtIdx]</span> = <span class="title">findHomography</span><span class="params">(pts1,pts2)</span></span></span><br><span class="line"><span class="comment">% [H corrPtIdx] = findHomography(pts1,pts2)</span></span><br><span class="line"><span class="comment">%	Find the homography between two planes using a set of corresponding</span></span><br><span class="line"><span class="comment">%	points. PTS1 = [x1,x2,...;y1,y2,...]. RANSAC method is used.</span></span><br><span class="line"><span class="comment">%	corrPtIdx is the indices of inliers.</span></span><br><span class="line"></span><br><span class="line">coef.minPtNum = <span class="number">4</span>;</span><br><span class="line">coef.iterNum = <span class="number">30</span>;</span><br><span class="line">coef.thDist = <span class="number">4</span>;</span><br><span class="line">coef.thInlrRatio = <span class="number">.1</span>;</span><br><span class="line">[H corrPtIdx] = ransac1(pts1,pts2,coef,@solveHomo,@calcDist);</span><br><span class="line"></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">d</span> = <span class="title">calcDist</span><span class="params">(H,pts1,pts2)</span></span></span><br><span class="line"><span class="comment">%	Project PTS1 to PTS3 using H, then calcultate the distances between</span></span><br><span class="line"><span class="comment">%	PTS2 and PTS3</span></span><br><span class="line"></span><br><span class="line">n = <span class="built_in">size</span>(pts1,<span class="number">2</span>);</span><br><span class="line">pts3 = H*[pts1;<span class="built_in">ones</span>(<span class="number">1</span>,n)];</span><br><span class="line">pts3 = pts3(<span class="number">1</span>:<span class="number">2</span>,:)./<span class="built_in">repmat</span>(pts3(<span class="number">3</span>,:),<span class="number">2</span>,<span class="number">1</span>);</span><br><span class="line">d = sum((pts2-pts3).^<span class="number">2</span>,<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
-
-<p>*<strong>7-mosaicTest.m 主函数*</strong></p>
-<figure class="highlight matlab"><table><tr><td class="code"><pre><span class="line">clear</span><br><span class="line">close all</span><br><span class="line">config;</span><br><span class="line"><span class="comment">% f = &#x27;a&#x27;;</span></span><br><span class="line">ext = <span class="string">&#x27;jpg&#x27;</span>;</span><br><span class="line">img1 = imread([<span class="string">&#x27;视图2.&#x27;</span> ext]);</span><br><span class="line">img2 = imread([<span class="string">&#x27;视图1.&#x27;</span> ext]);</span><br><span class="line"></span><br><span class="line">img0 = imMosaic(img2,img1,<span class="number">1</span>);</span><br><span class="line"><span class="built_in">figure</span>,imshow(img0)</span><br><span class="line">imwrite(img0,[<span class="string">&#x27;mosaic_1.&#x27;</span> ext],ext)</span><br></pre></td></tr></table></figure>
-
-<h3 id="图像拼接结果"><a href="#图像拼接结果" class="headerlink" title="图像拼接结果"></a>图像拼接结果</h3><p>两张原图：</p>
-<p><img src="https://picx.zhimg.com/v2-b8c59c642cb55d882c0ba49162a30f0b_1440w.jpg" alt="img"></p>
-<center>原图1</center>
-
-<p><img src="https://pica.zhimg.com/v2-d28ad687306e5ff48b56da4ff9da82aa_1440w.jpg" alt="img"></p>
-<center>原图2</center>
-
-<p>两张图特征点匹配结果：</p>
-<p><img src="https://pic2.zhimg.com/v2-0dd8b2038f38d00d26576373d3c52e31_1440w.jpg" alt="img"></p>
-<center>两张图特征点匹配结果</center>
-
-<p>拼接效果：</p>
-<p><img src="https://pic1.zhimg.com/v2-438c6c9b278c8a2717224ac04b93ceb8_1440w.jpg" alt="img"></p>
-<center>两张图的拼接效果</center>
-
-<p>如果想对一系列的图片进行拼接，可以先对第一张和第二张进行拼接，得到一张拼接图，再与第三张图片进行拼接，依次类推。</p>
-<p><strong>由于还需要一些其他文件</strong>，因此将整体的demo文件放在这里：</p>
-<p>链接：<a href="https://link.zhihu.com/?target=https://pan.baidu.com/s/1D-CMz44Zgz174Q5xPrnlWw">https://pan.baidu.com/s/1D-CMz44Zgz174Q5xPrnlWw</a></p>
-<p><a href="https://zhida.zhihu.com/search?content_id=239040753&content_type=Article&match_order=1&q=%E6%8F%90%E5%8F%96%E7%A0%81&zhida_source=entity">提取码</a>：sift</p>
-]]></content>
-      <categories>
-        <category>教程</category>
-      </categories>
-      <tags>
-        <tag>教程</tag>
-        <tag>图像处理</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>自我介绍</title>
-    <url>/2024/10/29/hello-world/</url>
-    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-]]></content>
-      <tags>
-        <tag>自我介绍</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>OpenSim基础教程</title>
-    <url>/2024/11/04/Opensim%E5%9F%BA%E7%A1%80%E6%95%99%E7%A8%8B/</url>
-    <content><![CDATA[<h2 id="一、Opensim下载与介绍"><a href="#一、Opensim下载与介绍" class="headerlink" title="一、Opensim下载与介绍"></a><strong>一、Opensim下载与介绍</strong></h2><h3 id="1-1-Opensim介绍（翻自官网）"><a href="#1-1-Opensim介绍（翻自官网）" class="headerlink" title="1.1 Opensim介绍（翻自官网）"></a>1.1 Opensim介绍（翻自官网）</h3><p>*<strong>什么是 OpenSim？*</strong></p>
-<p>OpenSim 是一个免费提供的软件包，使您能够构建、交换和分析肌肉骨骼系统的计算机模型和运动的动态模拟。OpenSim 1.0 版于 2007 年在美国生物力学学会会议上推出。在 2.0 版中，添加了应用程序编程接口 (API)，允许研究人员访问和自定义 OpenSim 核心功能。在 3.0 和 4.0 版本中，API 扩展到 Matlab 和 Python，并添加了一个新的漂亮的可视化工具。自首次发布以来，已有数千人在各种应用中使用该软件，包括生物力学研究、医疗器械设计、骨科和康复科学、神经科学研究、人体工程学分析和设计、运动科学、计算机动画、机器人研究、生物学，和教育。</p>
-<p>该软件提供了一个平台，生物力学界可以在该平台上构建一个模拟库，该模拟库可以通过多机构合作进行交换、测试、分析和改进。核心软件用 C++ 编写，图形用户界面 (GUI) 用 Java 编写。OpenSim 插件技术使得开发定制控制器、分析、接触模型和肌肉模型等成为可能。无需更改或编译源代码即可共享这些插件。您可以从 GUI 中分析现有模型和模拟并开发新模型和模拟。</p>
-<p>一些核心功能使用开源的第三方工具，包括three.js。插件技术的使用允许计算组件（例如积分器和优化器）在不进行大量重组的情况下进行适当更新。GUI 是用 Java 编写的，构建在 Netbeans 平台 ( <a href="https://link.zhihu.com/?target=http://Netbeans.org">http://Netbeans.org</a> ) 之上。</p>
-<h3 id="1-2-下载"><a href="#1-2-下载" class="headerlink" title="1.2 下载"></a><strong>1.2 下载</strong></h3><p><em>官网下载链接：</em></p>
-<p><a href="https://link.zhihu.com/?target=https://opensim.stanford.edu/">OpenSim - Homeopensim.stanford.edu&#x2F;</a></p>
-<p>有一些注意事项和缺失的模型文件：</p>
-<p>（<a href="https://link.zhihu.com/?target=https://pan.baidu.com/s/1F6G98KjhPSRBOHvMJP6Zvw">https://pan.baidu.com/s/1F6G98KjhPSRBOHvMJP6Zvw</a> 提取：406v）</p>
-<h3 id="1-3-OpenSim流程"><a href="#1-3-OpenSim流程" class="headerlink" title="1.3 OpenSim流程"></a><strong>1.3 OpenSim流程</strong></h3><p>OpenSim软件的运动学和动力学仿真使用SimBody引擎，其核心模块为：Scale，IK，FD，ID，RRA，CMC。Scale用于通用模型的缩放和体征参数的标定，以适应受试者的差异性体态特征；IK为逆运动学反解，通过实测的标记点数据，通过加权最小二乘方法反向求解出个各个多个关节自由度的变化曲线。RRA是残差缩减算法，由于测量噪声、建模误差以及加速度的估计误差带来的残差力导致动力学模型输出与实测力发生了冲突，RRA通过调整躯体各骨骼结构的质量分布，修正IK反解的逆运动学曲线是的模型动力学输出符合实测。CMC则是根据Hill肌肉收缩力模型，RRA优化的运动学曲线和实测足底压力信息作为输入，通过静态优化算法和正向动力学仿真，计算各肌肉纤维的激活程度和出力情况。如图1.1所示：</p>
-<p><img src="https://pic1.zhimg.com/80/v2-d133dd131c085d7dcd530e7d2b01c752_720w.webp" alt="img"></p>
-<center>图1.1 各模块的数据流程图</center>
-
-<h2 id="二、Opensim使用教程"><a href="#二、Opensim使用教程" class="headerlink" title="二、Opensim使用教程"></a>二、Opensim使用教程</h2><h3 id="2-1-Scale-模型缩放"><a href="#2-1-Scale-模型缩放" class="headerlink" title="2.1 Scale(模型缩放)"></a>2.1 Scale(模型缩放)</h3><p><strong>2.1.1 目的</strong></p>
-<p>你打开的2392模型（或者其他自带模型）是一个通用模型，其参数是已经设置好的（包含人体各骨块的质量，质心位置，骨块之间的连接方式，关节自由度等）。而要得到实验被测人员的模型（个性化模型），就需要对通用模型进行缩放，使其与被测对象相匹配。</p>
-<p><strong>2.1.2 具体步骤（以自带模型2392为例）</strong></p>
-<p>*<strong>·打开2392模型*</strong></p>
-<p>依次点击<em>File-OpenModel</em>，浏览文件夹，在文件夹<em>Model</em>中选择<em>Gait2392_Simbody</em>，找到<em>subject01_simbody.osim</em>(后缀为osim的即为模型文件)，打开后模型。</p>
-<p>打开后模型是不带Marker标记点的，在左侧<em>Navigator导航器</em>所打开的2392模型中，右键点击<em>Markers</em>，点击<em>Load from file…，</em>选择Marker标记点的设置文件<em>gait2392_Scale_MarkerSet.xml</em> 打开（如图2.1.1所示），可以看到模型已经有标记点，如图2.2所示。</p>
-<p><img src="https://pic2.zhimg.com/80/v2-e0dbf33e4650afe9483acb4775a9387d_720w.webp" alt="img"></p>
-<center>图2.1.1 标记点设置</center>
-
-<p><img src="https://pic4.zhimg.com/80/v2-ee7e20eeff2568200412c29e70096771_720w.webp" alt="img"></p>
-<center>图2.1.2 模型标记点</center>
-
-<p>*<strong>·Scale缩放工具使用（预设）*</strong></p>
-<p>点击工具Tools，选择模型缩放工具Scale Model，进入缩放工具界面，如图2.1.3所示。点击Load，载入预先设定好的Scale预设文件。</p>
-<p><img src="https://pica.zhimg.com/80/v2-5cbcb0970a498f127fc0fc7d3e9780ca_720w.webp" alt="img"></p>
-<center>图2.1.3 Scale模型缩放工具界面</center>
-
-<p>选择此模型文件夹中的Scale预设文件：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-d6a1f477865f7022d4edd9c3feef17dd_720w.webp" alt="img"></p>
-<center>图2.1.4 Scale预设文件</center>
-
-<p>OpenSim的一个特点就是可以直接从文件名看出该文件的用途，它的所有配置文件都是xml格式，Setup_Scale说明是Scale的设置文件。载入预设后，可以发现Scale Tool的界面与原来发生了变化：</p>
-<p><img src="https://pic3.zhimg.com/80/v2-7beddd8f13576b494a74d55aa331df24_720w.webp" alt="img"></p>
-<center>图2.1.5 Scale Tool界面</center>
-
-<p>1-质量缩放：利用受试者质量和模型质量在进行质量缩放比例的计算，在这里输入受试者的体重质量。</p>
-<p>2-添加Markers标记点：刚才其实已经载入过标记点了，在这里预设中也会对模型加载标记点。</p>
-<p>3&#x2F;4-受试者静态Markers标记点：这是受试者静态状态各个Marker点的空间位置，这个位置会与模型的位置在运算中相匹配。</p>
-<p>5-缩放时间范围：给定了进行模型缩放所针对的时间范围，这里为1s-1.1s。</p>
-<p>完成上述操作之后，点击下方的run按键，即可运行比例缩放，如图2.1.6所示，左侧为缩放后的模型，右侧为原始的通用模型。</p>
-<p><img src="https://picx.zhimg.com/80/v2-1428601fcdc8f9a1b76dd89e2af3fedb_720w.webp" alt="img"></p>
-<center>图2.1.6 模型缩放演示</center>
-
-<p><strong>2.1.3 利用实验测得的数据进行Scale模型缩放</strong></p>
-<p>*<strong>·导入实验数据*</strong></p>
-<p>Scale利用的是实验在静态标定过程中的数据。从实验室获取的实验数据一般是c3d格式的文件，该文件可以被转化为静态标定时的Marker点轨迹实验数据.trc和测力台数据。转化方法是利用OpenSim提供的c3dExport.m文件进行转化，该转换是将实验数据导入OpenSim的基础操作，参考：</p>
-<p><a href="https://link.zhihu.com/?target=https://blog.csdn.net/weixin_45367061/article/details/109735753?spm=1001.2014.3001.5501">OpenSim进阶笔记（一）：基于Matlab将C3D文件转化为trc文件_opensim中的c3d-CSDN博客blog.csdn.net&#x2F;weixin_45367061&#x2F;article&#x2F;details&#x2F;109735753?spm&#x3D;1001.2014.3001.5501<img src="https://pic1.zhimg.com/v2-8e2ec316fc539e74e879cffaee23e322_180x120.jpg" alt="img"></a></p>
-<p>*<strong>·Scale缩放工具使用（实验数据）*</strong></p>
-<p>和上述步骤一样，打开Scale模型工具，如图2.1.5，输入受试者的体重，导入静态站立动作轨迹文件.trc，选择一个小的时间段。接下来选择Scale Factors，根据个性化的需求，调整Scale Factors缩放因子，主要有两种方式，一种是Use measurement，一种是Use manual scales（手动缩放）：</p>
-<p><img src="https://pic3.zhimg.com/80/v2-80a8d26b9951df334a12abb4799f277a_720w.webp" alt="img"></p>
-<center>图2.1.7 Scale Factors缩放因子</center>
-
-<p>首先介绍Use measurement，通过设置每个body的缩放比例，以及使用哪些markers，来缩放特定的body。点击图2.1.7所示的Edit Measurement Set进行设定，进入图2.1.8界面：</p>
-<p><img src="https://pic1.zhimg.com/80/v2-acb15458713c748f4b1b30d874d5dbfa_720w.webp" alt="img"></p>
-<center>图2.1.8 measurement设置</center>
-
-<p>这里就是设定用哪几个marker来缩放一个body，每个body下都需要偶数个marker，两两一组，通过一组内的两个marker的距离来对body进行缩放。如图2.1.8所示，pelvis骨盆利用两个（一组）marker进行缩放，R.ASIS和L.ASIS是一组。如图2.1.9右侧所示，R.ASIS和L.ASIS的距离是m，OpenSim利用这组marker的距离与实验marker的距离e匹配，从而达到缩放pelvis骨盆的效果。</p>
-<p><img src="https://pic3.zhimg.com/80/v2-b000ee782646f5f67715adfb5519ad7e_720w.webp" alt="img"></p>
-<center>图2.1.9 Scale原理示意图</center>
-
-<p>对于另一种方法Use manual scales，直接通过手动输入自己所需要的比例，如图2.1.10所示：</p>
-<p><img src="https://pica.zhimg.com/80/v2-841680ce28a71fb49147bf4e01e53842_720w.webp" alt="img"></p>
-<center>图2.1.10 manual scales手动缩放</center>
-
-<p>回到Scale Factor界面，点击对应的body，选择相应的Measurement方法即可，可以在最后一列看到缩放因子的大小，如图2.1.11所示：</p>
-<p><img src="https://pic4.zhimg.com/80/v2-378d147ded102752b588826f4ebf50bb_720w.webp" alt="img"></p>
-<center>图2.1.11 Scale Factor方法选择</center>
-
-<p>对于Markers标记点权重值的设置:点击Static Pose Weights选项卡，如图2.1.12所示，会出现两个表格，第一个表格是每个marker的名字及权重值，第二个表格是广义坐标名及其权重。一般情况下，第二个表格保留默认值就好，我们主要设置的是第一个表格的权重值。</p>
-<p><img src="https://pic4.zhimg.com/80/v2-28adb0bb6bc89795b20ebdf39da34857_720w.webp" alt="img"></p>
-<center>图2.1.12 权重值设置</center>
-
-<p>设置权重值的作用是让缩放工具在缩放过程中对不同marker的误差有不同程度的跟踪效果，对于权重大的marker，缩放工具会让其误差更小，通常在骨性标志点的marker我们会设置一个较大的权重值，对于其他精度要求不高的marker，我们设置小一点的权重值，权重值的设置要根据不同的数据进行不同程度的调整，权重值的大小没有一个固定的标准答案。在这里均设置成100。</p>
-<p>上述设置完成后，回到Settings，勾选上Preview static pose(no marker movement）,方便后续观察调整Markers。点击run运行，即可运行根据实验数据所对应的比例缩放。</p>
-<p><img src="https://pica.zhimg.com/80/v2-cf6e17f8024108a9a330a5f8d5e44524_720w.webp" alt="img"></p>
-<center>图2.1.13 Scale Tool界面</center>
-
-<p>运行完成后，在下方messages窗口可以看到一些信息，其中比较关键的是误差值：</p>
-<p><img src="https://pic3.zhimg.com/80/v2-6c3da476118cd32939492aabb5cbf240_720w.webp" alt="img"></p>
-<center>图2.1.14 Scale的误差信息</center>
-
-<p>在步态实验中，通常规定RMS error小于2cm，解剖学标志点处的max. error小于4cm。下面就开始对Markers的位置进行调整，从而减小误差。</p>
-<p>*<strong>·Scale的误差处理*</strong></p>
-<p>点击File–Preview Experimental Data，在打开的文件选择框中选取你的实验轨迹文件:</p>
-<p><img src="https://pic3.zhimg.com/80/v2-385ba0d142c63790adb32367bac6cdfa_720w.webp" alt="img"></p>
-<center>图2.1.15 实验轨迹文件</center>
-
-<p>随后就可以看到图2.1.16中的蓝色标记点，这就是实验的轨迹文件。右键点击subject01，点击Display-Model Offest，改变z的值，将调整后的模型和实验轨迹位置重合：</p>
-<p><img src="https://pica.zhimg.com/80/v2-89c5a45ec5fcd5c19c775106ca5a2cca_720w.webp" alt="img"></p>
-<center>图2.1.16 导入实验轨迹</center>
-
-<p>从图2.1.14中得知，误差最大的地方在Top Head头顶，可以从图2.1.17中很明显的看到头顶的误差，其他位置的Markers同理。双击原始通用模型（一定要选中原始模型），使其字体加粗。然后对照着实验轨迹，调整原始通用模型的标记点（向实验轨迹标记点位置靠近），如图2.1.17所示：</p>
-<p><img src="https://pic1.zhimg.com/80/v2-0663806b6bebc04801a9cbfb8ebb1348_720w.webp" alt="img"></p>
-<center>图2.1.17 标记点调整</center>
-
-<p>其他位置的标记点调整同理，如图2.1.18所示：</p>
-<p><img src="https://pic4.zhimg.com/80/v2-dcf62dafb8a475680fc45d4aa4bf8661_720w.webp" alt="img"></p>
-<center>图2.1.18 标记点调整</center>
-
-<p>所有Markers标记点调整完后，右键原始模型Markers,点击Save to file，保存当前标记点文件：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-4316480bbffe7dbf52dc1970ee7f6613_720w.webp" alt="img"></p>
-<center>图2.1.19 保存当前标记点</center>
-
-<p>关闭调整后的模型subject01（不用保存），重新进行缩放，其他设置同图2.1.13，只需要更改Add Markers from file，添加图2.1.19所保存的标记点文件：</p>
-<p><img src="https://picx.zhimg.com/80/v2-c111d8f20b63bd9f614cfd6542cf899f_720w.webp" alt="img"></p>
-<center>图2.1.20 重新进行缩放</center>
-
-<p>调整后误差已经有所减小，最大的位置还是在头顶处，继续调整，保存标记点文件，直到误差满足要求：RMS error小于2cm，max. error小于4cm即可。</p>
-<p><img src="https://pic3.zhimg.com/80/v2-05ced3a41ef6b5229d5a8366d91532e2_720w.webp" alt="img"></p>
-<center>图2.1.21 Scale的误差信息</center>
-
-<p>当误差满足要求后，关闭模型subject01（不用保存），重新进行缩放，其他设置同图2.1.13，只需要更改Add Markers from file，添加最新所保存的标记点文件。在最后一次调整完成后，不要再勾选上Preview static pose(no marker movement）,直接点击run运行，这时导出的subject01是缩放以及调整完标记点误差后的模型，如图2.1.23所示，可以看到，实验轨迹标记点即为模型标记点。</p>
-<p><img src="https://pic2.zhimg.com/80/v2-7968024a642d1c97db9e01c18474bc4f_720w.webp" alt="img"></p>
-<center>图2.1.22 Scale Tool界面</center>
-
-<p><img src="https://pic1.zhimg.com/80/v2-0643cc024a452ab2c748f08479b6ee14_720w.webp" alt="img"></p>
-<center>图2.1.23 缩放完成</center>
-
-<p>缩放完成，右键点击subjetct01,点击save as保存该缩放好的模型，方便后续IK和ID等。</p>
-<h3 id="2-2-IK-逆运动学计算"><a href="#2-2-IK-逆运动学计算" class="headerlink" title="2.2 IK(逆运动学计算)"></a>2.2 IK(逆运动学计算)</h3><p><strong>2.2.1 IK的目的</strong></p>
-<p>逆运动学Inverse Kinematics，简称IK，在OpenSim中主要用于生成模型的运动信息。</p>
-<p>在OpenSim官网中，是这样描述的：IK工具将遍历运动的每个时间步（帧）来计算广义坐标，该坐标将模型的marker放置在与实验数据（受试者标记点）最匹配&#x2F;最贴合的位置。在数学上，“最匹配”表示为加权最小二乘问题。</p>
-<p>通俗的说，当你通过实验获得了一组受试者身体各个标记点的运动轨迹数据之后，利用IK工具，可以让模型的markers沿着实验数据的各点轨迹来运动，这样整体看来，模型就以受试者的姿态完成了在计算机中的“运动”。</p>
-<p><strong>2.2.2 IK的原理</strong></p>
-<p>在IK中，逆运动学计算算法的基本原理就是，按照采样频率将实验数据分成一个一个的“帧”，我们可以假设某次实验用采样频率为30Hz的试验台收集了十秒数据，那么OpenSim中就认为这组数据有300帧。</p>
-<p>首先将第一帧到第二帧的实验标记点位置变化记录下来。</p>
-<p>紧接着，用模型的markers的位置，来和第二帧的实验标记点进行比较，并驱动模型的各个拥有自由度的关节，使模型姿态发生改变，以达到markers与实验标记在空间上其广义坐标值“完全一致”</p>
-<p>这时，我们可以认为，模型已经和第二帧的受试者动作保持一致了。接下来就用第三帧的实验数据和第二帧的模型姿态作为基础，重复上述两个步骤，以此类推直到完成全部帧的计算。</p>
-<p>完成上述步骤后，模型就会与实际的人的运动姿态相一致了。</p>
-<p><img src="https://pic4.zhimg.com/80/v2-424d6f3e3b7f2e96c944adea3d608b35_720w.webp" alt="img"></p>
-<center>图2.2.1 IK示意图</center>
-
-<p><strong>2.2.3 IK的操作步骤</strong></p>
-<p>*<strong>·IK的输入与输出*</strong></p>
-<p>与Scale一样，IK同样拥有两种计算方法，分别是利用现有的数据进行计算或者是利用实验室测量的数据进行计算，与Scale类似的是，如果利用现成的配置进行计算的话，仅仅需要载入IK配置文件——IK-Setup.xml之类的文件。这里将主要集中介绍一下如何使用自己从实验室获取的数据来进行IK操作。</p>
-<p><img src="https://pic2.zhimg.com/80/v2-39d70e30058ed0993f246a06ae8c4fd5_720w.webp" alt="img"></p>
-<center>图2.2.2 IK所需文件</center>
-
-<p>输入：</p>
-<p><em>1-subject01_simbody.osim:一种特定的OpenSim模型，通过使用Scale工具或其他方法缩放通用模型，以及包含调整过的虚拟标记的相关标记集而生成。</em></p>
-<p><em>2-subject01_walk1.trc：从运动捕捉系统获得的实验标记轨迹，以及感兴趣的时间范围。</em></p>
-<p><em>3-gait2354_Setup_IK.xml:一个包含IK工具的所有设置信息的文件，包括标记权重(IK任务)。与Scale工具一样，标记权重是相对的，它决定了虚拟标记跟踪实验标记的“好”程度(给定标记的权重越大，误差越小，标记的虚拟表示与实验表示之间的距离)。</em></p>
-<p><em>4-subject01_coords.mot （可选）：从替代运动捕捉设备或其他专门算法获得的试验的实验广义坐标值(关节角)。如果关节角度是已知的，则可以在任务文件中指定相对坐标权重。</em></p>
-<p>输出：</p>
-<p><em>1-subject01_walk1_ik.mot：一个包含IK计算的广义坐标轨迹(关节角度&#x2F;平移)的运动文件。</em></p>
-<p>*<strong>·IK Tool工具的使用*</strong></p>
-<p>首先打开之前已经缩放好保存后的模型文件。在这个缩放好的模型基础上进行IK。</p>
-<p>点击Tool-Inverse Kinematics,进入IK工具界面。如图2.2.3所示，在IK Trail这一部分中，点击Marker Data From Trail后面的小文件夹图标，载入实验测得的数据.trc。在Output这一部分，设置IK结果的输出目录及文件名。</p>
-<p><img src="https://pic2.zhimg.com/80/v2-fc4caed01a33c61c87ba16c031b9b395_720w.webp" alt="img"></p>
-<center>图2.2.3 IK工具界面</center>
-
-<p>注意输出文件要手动打上文件后缀.mot：</p>
-<p><img src="https://pica.zhimg.com/80/v2-6b3fd1829c34899b5d17fc564077766e_720w.webp" alt="img"></p>
-<center>图2.2.4 IK输出设置</center>
-
-<p>这时Run是点击不了的，将weights选项卡里的红色部分取消勾选，回到Settings即可run运行。</p>
-<p><img src="https://pic3.zhimg.com/80/v2-629b08d40faca9e54f2758b7f7095d3e_720w.webp" alt="img"></p>
-<center>图2.2.5 取消红色部分的勾选</center>
-
-<p>运行的结果如下：</p>
-<p><img src="https://picx.zhimg.com/v2-363a6e7f27c918b96d17880d3b3b9f69_b.jpg" alt="动图封面"></p>
-<center>图2.2.6 IK运行结果</center>
-
-<p>通过图2.2.4 IK输出的结果文件，可以用表格打开，观察关节角度趋势等，如图2.2.7所示：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-dd7b484cc871a1658eea17f7dcf3ed13_720w.webp" alt="img"></p>
-<center>图2.2.7 IK运行结果(图表)</center>
-
-<p>也可以通过画图工具plot（Tools-Plot）进行观察运行结果：</p>
-<p><img src="https://pica.zhimg.com/80/v2-3f98d15dbf4b77d6a4aba2fccbbd1f8c_720w.webp" alt="img"></p>
-<center>图2.2.8 IK运行结果(Plot)</center>
-
-<h3 id="2-3-ID-逆向动力学计算"><a href="#2-3-ID-逆向动力学计算" class="headerlink" title="2.3 ID(逆向动力学计算)"></a>2.3 ID(逆向动力学计算)</h3><p><strong>2.3.1 ID的目的</strong></p>
-<p>逆动力学(ID)工具确定每个关节负责给定运动的广义力(例如，净力和扭矩)。给定描述模型运动的运动学(例如，状态或运动)以及应用于模型的部分动力学(例如，外部负载)，ID工具使用这些数据来执行逆向动力学分析。</p>
-<p>逆向动力学的目的是估计产生特定运动所需的力和力矩，逆向动力学分析得到的结果还可以用来预测肌肉是如何促成运动的。为算出力和力矩，需要迭代求解系统的运动方程组。运动方程组是由运动描述、模型mass属性得出。然后，利用逆向运动学求出的关节角、实验时地面反作用力数据，根据动态平衡条件和边界条件，从而求解出每个关节处的净反应力和力矩。需要注意的是，关节反应力，或节段间力，是模型中特定关节的总作用力。其区别于关节骨的骨力，是在关节的关节表面上看到的实际力，包括肌肉活动的影响。</p>
-<p>在求解逆向动力学问题时，需要运动数据和测力板数据，由此使得运动方程数多于未知量数（自由度数），故成为了一个超静定问题。由于实验运动数据的错误以及模型的不准确，最终导致牛顿第二法则不成立。为解决这个动力学不连续的问题，需要利用残差缩减模块对数据进一步处理。</p>
-<p><strong>2.3.2 ID的原理</strong></p>
-<p>反向动力学解算是已知躯体的运动状况和外界的受力情况，根据牛顿第二定律，反向解算出各关节的力与力矩输出。求解方程如下：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-76d2a258c172d7b9d5d30fc687fa2ff7_720w.webp" alt="img"></p>
-<center>图2.3.1 ID求解方程</center>
-
-<p>模型的运动完全由广义位置、速度和加速度定义。因此，运动方程左边的所有项都是已知的。运动方程右边的剩余项是未知的。逆动力学工具利用模型的已知运动来求解未知广义力的运动方程。</p>
-<p><strong>2.3.3 ID的操作步骤</strong></p>
-<p>*<strong>·ID的输入与输出*</strong></p>
-<p><img src="https://pica.zhimg.com/80/v2-472f4667a3da2e2607b587574435e3fc_720w.webp" alt="img"></p>
-<center>图2.3.2 ID所需文件</center>
-
-<p>输入：</p>
-<p><em>1-subject01_walk1_ik.mot:运动文件包含描述模型运动的广义坐标的时间历史。该文件可以由IK逆向运动学工具生成，也可以手动生成。文件不需要包含所有坐标的值。未指定的坐标假定具有默认值。</em></p>
-<p><em>2-subject01_walk1_grf.xml：外部载荷数据(即地面反作用力、力矩和压力中心位置)。请注意，有必要测量和应用或模拟运动期间作用在物体上的所有外力，以计算准确的关节扭矩和力。该文件包括地面反作用力数据文件的名称(例如，subject01_grf.mot)以及它们所应用的物体的名称。这里还定义了在全局或局部物体框架(相对于施加力的物体)中指定力、施加点和扭矩的选项。</em></p>
-<p><em>3-subject01_simbody.osim:一种特定的OpenSim模型，通过使用Scale工具或其他方法缩放通用模型，以及包含调整过的虚拟标记的相关标记集而生成。模型必须包括惯性参数。请注意，接触力、韧带、衬套甚至肌肉等力将根据模型的运动学状态和肌肉状态的默认值应用于模型，除非在计算中明确排除这些力。</em></p>
-<p>输出：</p>
-<p><em>1-subject01_walk1_InverseDynamics_force.sto：存储文件包含沿坐标轴作用的净关节扭矩和力的时间历史，这些坐标轴产生从测量的实验运动和施加的外力估计的加速度(通过双重微分)。</em></p>
-<p>*<strong>·ID Tool工具的使用*</strong></p>
-<p>首先打开之前已经缩放好保存后的模型文件。和IK一样，在这个缩放好的模型基础上进行ID。</p>
-<p>点击Tool-Inverse Dynamics,进入ID工具界面。如图2.3.3所示，在Main Settings这一部分中的Input，点击 From file后面的小文件夹图标(如下图中的1)，载入IK的结果.mot；如果是紧接着IK后做ID，则可以点击Loaded motion这部分,直接选择IK的结果IKResults(如下图中的2)。为了减少运动测量数据的噪声，一般选择6Hz(12Hz也可以)的截止频率对运动数据进行滤波去噪(如下图中的3)。</p>
-<p><img src="https://pica.zhimg.com/80/v2-94fe46c7b758b1ef5ef96ca91e62977c_720w.webp" alt="img"></p>
-<center>图2.3.3 ID工具界面</center>
-
-<p>为了算关节力矩，需要知道空间信息、时间信息和地面反作用力grf，点击External Loads，加载外力，点击最右侧的图标：</p>
-<p><img src="https://pic1.zhimg.com/80/v2-b1a7c494621deb242bed4ab64542a438_720w.webp" alt="img"></p>
-<center>图2.3.4 ID加载外力</center>
-
-<p>选择文件夹，加载.c3d文件转出来的.mot文件：</p>
-<p><img src="https://pica.zhimg.com/80/v2-932f379abef799ce9593154bdd1c5656_720w.webp" alt="img"></p>
-<center>图2.3.5 添加外力</center>
-
-<p>然后点击add，添加属性。首先需要设置地面反作用力的作用位置（如下图的1所示），一般为后脚掌着地，有时候可设置成其他地方。然后再更改下图的2：</p>
-<p><img src="https://pic4.zhimg.com/80/v2-6f77fdb3d8d84c77d048d6f71ad4b921_720w.webp" alt="img"></p>
-<center>图2.3.6 属性设置</center>
-
-<p>点击ok再点击save，保存得到一个grf的xml文件：</p>
-<p><img src="https://pic4.zhimg.com/80/v2-f635ef5406c0959b9b3119c895f5e3d1_720w.webp" alt="img"></p>
-<center>图2.3.7 保存grf.xml文件</center>
-
-<p>回到Main settings，设置输出位置及文件名，点击run运行，得到ID的运行结果：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-96e6d7b8b76057b91decb467212fe887_720w.webp" alt="img"></p>
-<center>图2.3.8 ID运行结果</center>
-
-<p>同样的，和IK一样，可以用Plot画图工具对实验结果进行观察。将某些部位的IK和ID结果数据画在一张图上，观察该部位的关节角度和关节力矩。</p>
-<h3 id="2-4-Static-Optimation静态优化"><a href="#2-4-Static-Optimation静态优化" class="headerlink" title="2.4 Static Optimation静态优化"></a>2.4 Static Optimation静态优化</h3><p><strong>2.4.1 STO的目的</strong></p>
-<p>SO是逆动力学求解的扩展，它进一步将净关节力矩分解为每个瞬间的单个肌肉力。通过最小化肌肉激活的平方和(或其他功率)来解决肌肉力，在求解关节力矩的基础上进一步计算肌肉的激活程度和发力情况。静态是指在某一时间点能够确定优化的目标值，而不需要等待该过程结束，例如优化起跳高度过程需要等到跳高这一动作结束才能知道结果。对于一组含有冗余变量的方程，其存在多组解，优化则是根据评价标准，例如激活水平的平方和，选取其中较优的一组解作为结果。</p>
-<p><img src="https://pic3.zhimg.com/80/v2-d3cb2126336f772dd0403172649e40ce_720w.webp" alt="img"></p>
-<center>图2.4.1 STO是逆动力学求解的扩展</center>
-
-<p><strong>2.4.2 STO的原理</strong></p>
-<p>正如逆动力学中所描述的，模型的运动完全由广义的位置、速度和加速度来定义。静态优化工具使用模型的已知运动来求解未知广义力(例如，关节扭矩)的运动方程，该运动受到以下肌肉激活到力的条件之一:</p>
-<p>理想的肌肉收缩力与激活因子、力臂之间的关系：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-a0d14ff177c2cb2f3c87f2d32117c15f_720w.webp" alt="img"></p>
-<p>考虑肌肉收缩力与肌肉纤维的长度和速度约束关系的模型：</p>
-<p><img src="https://picx.zhimg.com/80/v2-5b8fb0fc456a2b76c64e078118e56ce1_720w.webp" alt="img"></p>
-<p>STO优化的目标是最小化肌肉的激活因子：</p>
-<p><img src="https://pic4.zhimg.com/80/v2-6fc7e171661b2a70d5b3c5e54d2e99eb_720w.webp" alt="img"></p>
-<p>静态优化在OpenSim中的应用主要是用来估计在特定姿势或运动条件下，模型中各肌肉的收缩力以维持该姿势或克服外部负荷。静态优化问题的目标通常是找到一组肌肉激活水平（activation levels），使得模型产生的内部力量能够平衡所有外部力（如重力、支撑反作用力和其他已知力矩）同时满足肌肉力学约束（例如肌肉长度-张力关系、关节限制等）。</p>
-<p>静态优化是一种满足所给运动的位置、速度、加速度以及外部力（如地面反作用力）时，估计肌肉激活与肌肉力的方法。之所以称为静态优化，是因为每一帧（或步）独立计算，不需要把每一步运动的运动方程联立求解。由于不需要联立方程求解，计算速度快，效率高，但他计算要考虑 activation dynamics 和肌腱顺应性。</p>
-<p><strong>2.4.3 STO的操作步骤</strong></p>
-<p>*<strong>·STO的输入与输出*</strong></p>
-<p><img src="https://pica.zhimg.com/80/v2-14ee08ca062762f7faaf180c5598c476_720w.webp" alt="img"></p>
-<center>图2.4.2 STO输入与输出</center>
-
-<p>输入：</p>
-<p><em>1-subject01_walk1_ik.mot:运动文件，包含描述模型运动的广义坐标的时间历史。这可以是来自IK的运动学数据(即关节角度)，也可以是来自RRA的状态(即关节角度和速度)，如果输入的输入为IK输入，则需要进行滤波处理，RRA数据则不必要进行滤波。对于步态或其他相关运动，需要在每一个自由度上添加一个残差驱动器，这是由于加速度的测量估计以及建模精度多带来的误差导致动力学模型输出与实测力数据不符。通过RRA可以减小这种残差，但是不能够彻底消除。</em></p>
-<p><em>2-subject01_walk1_grf.xml：外部负载数据(即地面反作用力、力矩和压力中心位置)。注意，你必须测量或模拟运动过程中作用在物体上的所有外力，以计算准确的肌肉力量。xml文件描述了在分析过程中如何将测量到的地面反作用力应用于模型。</em></p>
-<p><em>3-subject01_simbody.osim:一种特定的OpenSim模型，通过使用缩放工具或通过其他方式缩放通用模型，以及包含调整后虚拟标记的相关标记集生成。该模型必须包括惯性参数(段质量等)。</em></p>
-<p>输出：</p>
-<p><em>1-subject01_walk1_StaticOptimization_controls.xml:包含肌肉激活的时间历史。这些控制被静态优化工具最小化。</em></p>
-<p><em>2-subject01_walk1_StaticOptimization_activation.sto：包含肌肉激活时间历史的存储文件。</em></p>
-<p><em>3-subject01_walk1_StaticOptimization_force.sto:一种特定的OpenSim模型，通过使用缩放工具或通过其他方式缩放通用模型，以及包含调整后虚拟标记的相关标记集生成。该模型必须包括惯性参数(段质量等)。</em></p>
-<p><em>（一般使用后面两种输出比较多）</em></p>
-<p>*<strong>·STO 工具的使用*</strong></p>
-<p>首先打开之前已经缩放好保存后的模型文件。在这个缩放好的模型逆向运动学基础上进行STO。</p>
-<p>点击Tool-Static Optimization,进入STO工具界面。如图2.4.3所示，在Main Settings这一部分中的Input，点击 From file后面的小文件夹图标(如下图中的1)，载入IK的结果.mot；滤波还是选择6Hz。</p>
-<p><img src="https://pic1.zhimg.com/80/v2-e77e7463b94f18de172ff7c196612b58_720w.webp" alt="img"></p>
-<center>图2.4.3 STO工具界面1</center>
-
-<p>在致动器和外部负载部分，致动器选择CMC_Actuators.xml；外部负载选择之前保存的地面反作用力grf.xml。</p>
-<p><img src="https://pic4.zhimg.com/80/v2-3570fe86ebbf574a4729718c74e465d5_720w.webp" alt="img"></p>
-<center>图2.4.4 STO工具界面2</center>
-
-<p>点击run运行，得到STO的三个输出结果，同时可以看到，红色部位是肌肉激活的部分，红色颜色越深说明激活程度越高。</p>
-<p><img src="https://pica.zhimg.com/80/v2-1d773d5bc0d5c138e3a07a4a7c407018_720w.webp" alt="img"></p>
-<center>图2.4.4 STO输出结果</center>
-
-<p><img src="https://pica.zhimg.com/v2-7a7be8de87e3f83964ec056aaf3e8720_b.jpg" alt="动图封面"></p>
-<center>图2.4.5 STO输出结果肌肉显示</center>
-
-<p>和之前一样，可以用Plot画图工具对实验结果进行观察。将某些部位的STO结果数据画在一张图上，观察该部位的肌肉力和肌肉激活。</p>
-<p>这里需要说明一下，有时候为了更贴合实际肌肉激活状态，需要更改致动器CMC_Actuators.xml中的参数，例如将下图中的数值改成1.0000：</p>
-<p><img src="https://pic3.zhimg.com/80/v2-db773d0d707b6cfa81292c535b16d15a_720w.webp" alt="img"></p>
-<center>图2.4.5 Actuator致动器参数更改</center>
-
-<h3 id="2-5-RRA-残差缩减算法"><a href="#2-5-RRA-残差缩减算法" class="headerlink" title="2.5 RRA 残差缩减算法"></a>2.5 RRA 残差缩减算法</h3><p><strong>2.5.1 RRA简介及目的</strong></p>
-<p>由于建模误差和测量数据误差导致躯体动力学模型输出存在误差项，和理论结构不符，这个没有物理意义的成分就称为残差，RRA就是要最小化模型的残差。RRA主要通过调整躯体的重心分布，进一步优化运动学曲线轨迹，以保证模型动力学输出与足底压力的一致性。</p>
-<p>减少残差的目的是最大程度地减少建模和标记数据处理错误的影响，这些错误很有可能会累积并导致模型产生巨大非物理补偿力。因此在进行 CMC 计算之前一定要对 IK的结果进行残差缩减，否则 CMC 的结果就会出现较大的偏差。具体而言，残差减少会更改特定对象模型的骨块质心，并使逆运动学中的模型运动学发生变化，以便更动态地与地面反作用力数据保持一致。</p>
-<p><strong>2.5.2 RRA的原理</strong></p>
-<p>首先我们需要明确的一点是，<strong>IK是一个离散积分的过程，通过对每个时刻内实验者的运动学数据进行计算，积分得到最终的运动轨迹。那么相对应的CMC（计算机肉控制）则是微分（差分）的过程，通过运动微分方程求解出所要知道的身体部分的加速度和角加速度，进而求出肌肉对身体的作用力。</strong></p>
-<p>对于一个行走模型躯体模型而言，躯体自由度比自身的关节驱动自由度多了三个平移和三个旋转自由度，这六个自由度代表了躯体的空间移动和旋转。理论上而言，足底与地面互相作用的驱动躯体的这六个自由度的运转，不存在其他外力的辅助。然而，由于噪声、精度等影响，理论动力学建模的结果会与实际现象存在不一致性，在此假设这六个自由度各存在一个残差驱动器，每个残差驱动器驱动躯体进行运动和旋转。理想情况下，动力学模型的输出与实测力数据相符，这个残差驱动的输出为零；然而受到加速度估计精度，测量误差，建模精度等的影响，残差驱动器的输出通常不为零，而RRA的目标函数就是最小化这个残差。RRA算法通过调整残差力，来调整模型的力学特性，进而使得牛顿第二定律在任意时刻都成立（规避了实验数据采集的误差）, 残差力Fr的计算公式如下：</p>
-<p><img src="https://pic4.zhimg.com/80/v2-eb235aafb9d98ba9d6ef212c3687b85b_720w.webp" alt="img"></p>
-<p>RRA算法根据IK反解的步态轨迹，利用正向动力学仿真模型，通过启发式搜索算法优化关于残差的目标函数，得出最优的驱动力&#x2F;力矩的分配结果。根据残差驱动力矩Mx,Mz的平均值，重新调整躯体中心的位置，并生成新的躯体模型，使之更加符合动力学模型，根据残差驱动力Fy的平均值调整躯体的重量，需要注意的是这个重量的改变并不会应用于新的躯体模型中。最后，重新执行一遍原有算法由于优化修正运动轨迹，这次循环中，不同之处在于，使用已重新调整的躯体模型，残差力&#x2F;力矩的惩罚权重增大，增加了残差力输出的上下限。目的为了减小残差驱动器的使用，尽量使用内部的关节驱动器来跟踪期望的运动轨迹。残差的限制应适当调整，若残差限制过于严格，则运动轨迹将会发生较大的变动，若残差限制过于宽松，则仍然会出现残差输出过大的问题。</p>
-<p><img src="https://pic1.zhimg.com/80/v2-e077c59e82fb38e35a6702eea24a5ec4_720w.webp" alt="img"></p>
-<center>图2.5.1 RRA误差递减算法的流程</center>
-
-<p><strong>2.5.3 RRA工具的使用</strong></p>
-<p>*<strong>·RRA的输入与输出*</strong></p>
-<p><img src="https://pic3.zhimg.com/80/v2-4ff2bbc7f5a54c069408f1dcd72fdd84_720w.webp" alt="img"></p>
-<center>图2.5.2 RRA的输入与输出</center>
-
-<p>输入：</p>
-<p><em>1-subject01_walk1_ik.mot:包含模型运动学的时间历史，包括关节角度和骨盆平移。</em></p>
-<p><em>2-gait2354_RRA_Tasks.xml:：一个跟踪任务文件，指定要跟踪的坐标和相应的跟踪权重(权重是相对的，并确定关节角度将从IK跟踪指定的关节角度的“好”程度)。使用此文件可以额外指定RRA执行器上的任何约束。</em></p>
-<p><em>3-subject01_simbody.osim:一种特定的OpenSim模型，通过使用缩放工具或通过其他方式缩放通用模型，以及包含调整后虚拟标记的相关标记集生成。该模型必须包括惯性参数。</em></p>
-<p><em>4-subject01_walk1_grf.xml：ExternalLoads文件指定在模拟期间应应用于模型的测量的地面反作用力以及如何应用它们。</em></p>
-<p><em>5-gait2354_RRA_Actuators.xml: 理想的关节驱动器，用于代替肌肉。执行器集指定要应用的剩余和备用执行器及其参数，例如最大&#x2F;最小力和主体，关节或位置(取决于执行器类型)。</em></p>
-<p>输出：</p>
-<p><em>1-subject01_RRA_states.sto：包含肌肉激活的时间历史。这些控制被静态优化工具最小化。</em></p>
-<p><em>2-subject01_adjusted.osim (可选)：具有调整质量属性的模型。</em></p>
-<p><em>3-subject01_RRA_controls.xml:致动器激励(即产生致动器力和扭矩所需的控制信号)。</em></p>
-<p><em>4-subject01_walk1_RRA_Kinematics_q.sto:包含众多RRA计算后的输出,主要有：执行机构的力和扭矩(即与调整后的运动学相对应的关节扭矩)；关节角，速度和加速度；试验的平均残值(FX, FY, FZ, MX, MY, MZ)的汇总；在试验过程中，每个模型广义坐标的位置误差。</em></p>
-<p>*<strong>·RRA工具的使用*</strong></p>
-<p>点击Tools-Reduce Residuals,进入RRA工具界面:</p>
-<p><img src="https://pica.zhimg.com/80/v2-a8d3356c56b43916e018c0a912b582e2_720w.webp" alt="img"></p>
-<center>图2.5.3 RRA工具界面</center>
-
-<p>在Desired Kinematics一栏中载入经过IK（Inverse Kinetics）运算后生成的.mot运动信息文件（注意这个位置一定是用步态周期或其他运动周期进行计算得到的数据，而不是static静态&#x2F;站立姿态采样的数据）。紧接着勾选下面的Filter kinematics，在后面的空中填入6Hz。简单解释一下为什么要选择6Hz作为滤波器的参数，由于人体的步频约为1.6~2.1Hz，因此高于这个频率的信号成分是系统噪声，因此利用低通滤波器来滤去这些噪声，以降低后面积分计算的难度。</p>
-<p>接下来再Tracking Tasks处选择gait2392_RRA_Tasks.xml，用vs code（或者其他的xml编辑器如notepad++）打开这个文件，发现这个文件包含了每一个关节在运算时候的权重和阻尼系数，如果想自定义运算的话，可以参考这个文件的结构来自己写RRA的tracking tasks文件，当然也可以直接在这里面修改数据。</p>
-<p><img src="https://pic2.zhimg.com/80/v2-1199f0348bce9c553409a6467f9f0e0b_720w.webp" alt="img"></p>
-<center>图2.5.4 RRA_Tasks.xml文件</center>
-
-<p>Reduce Residual部分里勾选adjust model，并且选择利用我们已经生成好的模型.osim文件。下面的Body COM(质心) to adjust位置选择torso(躯干)。</p>
-<p><img src="https://pica.zhimg.com/80/v2-919f0c8b41ed68f1bef1b4733d952f9c_720w.webp" alt="img"></p>
-<center>图2.5.5 RRA工具界面</center>
-
-<p>在致动器和外部负载部分，致动器选择RRA_Actuators.xml；外部负载选择之前保存的地面反作用力grf.xml。最后修改输出位置，点击run运行，得到输出结果：</p>
-<p><img src="https://pic1.zhimg.com/80/v2-c5c6a4268577709945d6ed2576abd264_720w.webp" alt="img"></p>
-<center>图2.5.6 RRA输出结果</center>
-
-<h3 id="2-6-CMC计算肌肉控制"><a href="#2-6-CMC计算肌肉控制" class="headerlink" title="2.6 CMC计算肌肉控制"></a>2.6 CMC计算肌肉控制</h3><p><strong>2.6.1 CMC简介及目的</strong></p>
-<p>计算一系列的肌肉激活水平（驱动器的控制信息）来追踪期望的运动学轨迹。即：计算一组在存在外力作用下(如果适用)能够驱动动态肌骨模型来跟踪一组输入的<strong>目标的运动学</strong>(<strong>Desired Kinematics</strong>)的肌肉激励(或更一般地说，执行器控制<strong>Actuator Controls</strong>)。</p>
-<p><strong>2.6.2 CMC原理</strong></p>
-<p>在模拟过程中，根据用户指定的时间间隔，CMC工具计算肌肉兴奋水平，该水平将驱动动态肌肉骨骼模型的广义坐标(例如，关节角度)向所需的运动轨迹发展。CMC通过使用比例-微分(PD)控制和静态优化的组合来实现这一点(下图)。</p>
-<p>在启动CMC算法之前，计算模型的初始状态。状态包括广义坐标(关节角度)、广义速度(关节角速度)，以及任何肌肉状态(例如肌肉激活水平和纤维长度)。虽然广义坐标和速度的初始值可以从你指定的理想运动学中获得，但肌肉状态的初始值通常是未知的。为了计算可行的起始肌肉状态，CMC应用于所需运动的前0.030秒。由于肌肉状态通常是不平衡的，并且肌肉力量在这个初始时间间隔内会发生巨大的变化，所以在这个时间间隔内的模拟结果通常是无效的。因此，请确保启动CMC的时间至少提前0.030秒。</p>
-<p><img src="https://pic4.zhimg.com/80/v2-cdac6c7d78548e9ccd2bbf09a417d181_720w.webp" alt="img"></p>
-<center>图2.6.1 CMC流程</center>
-
-<p>CMC算法的第一步是计算一组期望的加速度q¨，当实现时，将驱动模型坐标q向实验导出的坐标qexp。期望的加速度使用以下PD控制律计算:</p>
-<p><img src="https://picx.zhimg.com/80/v2-cbe21d892bc15246fbdb5c77b2a5c7f5_720w.webp" alt="img"></p>
-<p>其中kv和kp分别是速度误差和位置误差的反馈增益。因为肌肉施加在身体上的力不能瞬间改变，所以期望的加速度是在未来的一个小时间T内计算出来的。对于肌肉骨骼模型，T通常选择为0.010秒左右。这个时间间隔足够短，以允许适当的控制，但足够长，以允许肌肉力量的变化。</p>
-<p>如果实现了这些期望的加速度，模型坐标和实验推导坐标之间的误差将被驱动为零。为了以临界阻尼方式将这些误差驱动为零(即没有过冲或过阻尼)，可以使用以下关系选择速度增益:</p>
-<p><img src="https://pic4.zhimg.com/80/v2-7506520145c15d9c71ba72e0fc1bca57_720w.webp" alt="img"></p>
-<p>对于肌肉骨骼模型，如果选择误差增益将任何误差缓慢地驱动为零，则效果良好。误差增益k∈v&#x3D;20和k∈p&#x3D;100将减小跟踪误差。</p>
-<p>CMC的下一步是计算执行器控制x，它将实现所需的加速度q¨∗(t+ T)。大多数时候，控制主要由肌肉刺激组成，但这不是必需的。任何类型的驱动器都可以与CMC一起使用(例如，理想关节力矩)。采用静态优化将负载分配到协同执行器上。它被称为“静态”优化，因为性能标准(即成本指数)被限制在模拟过程中可以在任何时刻计算的数量上。例如，使用跳跃高度或步态周期的总代谢能等标准是不可能的，因为这些需要模拟直到身体离开地面或直到步态周期结束。</p>
-<p>目前CMC中有两种静态优化问题的表述。第一个公式称为慢目标，由一个性能标准J组成，它是执行器控制的平方的加权和加上期望的加速度误差的和:</p>
-<p><img src="https://pica.zhimg.com/80/v2-439e5fabf6e6fdfd0a3e3288a5fe8cd8_720w.webp" alt="img"></p>
-<p>第一个求和使各致动器之间的载荷最小化并分配，第二个求和使模型加速度q¨j 向期望的加速度q¨j 靠拢。</p>
-<p>第二个公式，称为快速目标，是由一组相等约束Cj&#x3D;0增强的平方控制和，要求在优化器的公差集中实现所需的加速度:</p>
-<p><img src="https://pic4.zhimg.com/80/v2-3f2a15139f7b0eb0dce7bcf21e391911_720w.webp" alt="img"></p>
-<p>快速目标不仅更快，而且通常能产生更好的跟踪效果。但是，如果约束条件不能满足，快速目标将失败，CMC将退出并返回错误信息。失败的原因往往是肌肉骨骼模型不够强大。</p>
-<p>为了防止快速目标失败，可以在模型中添加一些备用驱动器，以便在遇到任何情况时弥补肌肉力量的不足。备用执行器的强度(或最佳力)很低，因此需要非常高的激励才能将大量的负载应用到模型中。因此，在快速和缓慢的配方中，备用驱动器的使用都是非常不利的。当备用驱动器施加的力(或力矩)写入文件并绘制时，它们的值可以很好地指示肌肉骨骼模型中的哪些关节不够强。如果模型足够强，相对于主执行器施加的力&#x2F;力矩，备用执行器的力&#x2F;力矩通常应该很小。</p>
-<p>CMC算法的最后一步是使用计算出的控件进行标准的前向动态模拟，通过T在时间上向前推进。这些步骤——计算期望加速度、静态优化和前向动态模拟——重复进行，直到时间向前推进到期望移动间隔的结束。</p>
-<p>CMC执行完毕后，通常需要将计算出的肌肉兴奋模式与原型或实测的肌电图测量结果进行比较。如果需要，可以对控制x作为模拟时间函数的上下界施加约束。控件x上的边界在XML输入文件中指定。对于肌肉兴奋，默认的上限通常是1.0(完全兴奋)，默认的下限通常是略高于0.0(无兴奋)的一个小数字，例如0.01或0.02。下界并不是精确地设置为0.0，因为当兴奋程度一直到0.0时，肌肉的数学模型往往表现不佳。</p>
-<p><strong>2.6.3 CMC工具使用</strong></p>
-<p>*<strong>·CMC的输入与输出*</strong></p>
-<p><img src="https://pic4.zhimg.com/80/v2-f9e0c519c6b529d304f7336eba068e83_720w.webp" alt="img"></p>
-<center>图2.6.2 CMC输入与输出</center>
-
-<p>输入：</p>
-<p><em>设定文件(Setting file)：subject01_Setup_CMC.xml 这是CMC工具的一个设置文件(setup file)，它指定影响跟踪控制器行为的设置、输入和输出，以确定执行器(包括肌肉)控制。这些可以使用GUI或手动定义。设置文件(Setting file)识别执行器actuators(例如，动态一致性要求的残余执行机构)以及运动学跟踪任务。此外，可以指定执行机构的控制约束(以限制最大剩余力)。</em></p>
-<p><em>1-gait2345_CMC_ControlConstraints.xml:包含模型执行器的限制，其中包括肌肉，储备和剩余执行器。控制约束文件指定每个执行器的最大和最小“激励excitation”（即控制信号）。当某些致动器“打开”或“关闭”以及它们可以工作的范围时，控制约束条件还可用于强制执行。</em></p>
-<p><em>2-gait2345_CMC_Actuators.xml：包含剩余执行器和备用执行器，如在RRA中一样。</em></p>
-<p><em>3-gait2345_CMC_Tasks.xml:跟踪任务文件，指定要跟踪的坐标和相应的跟踪权重（权重是相对的，并确定关节角度如何更好的跟踪从RRA指定的关节角度）。</em></p>
-<p><em>4-subject01_walk1_RRA_Kinematics_q.sto：包含模型运动学的时间历史记录，包括RRA的关节角度和骨盆平移。</em></p>
-<p><em>5-subject01_walk1_grf.xml: 外部载荷数据（即，地面反作用力，力矩和压力中心位置）。</em></p>
-<p><em>6-subject01_simbody_adjusted.osim：特定对象的OpenSim模型，该模型是通过使用“缩放工具”或其他方法缩放通用模型以及包含已调整的虚拟标记的关联标记集生成的。模型必须包括惯性参数。模型应具有经过调整的躯干质心，以减少残差。</em></p>
-<p>输出：</p>
-<p><em>1-subject01_walk1_controls.xml：包含对单个肌肉的激励以及对任何剩余和&#x2F;或备用执行器的控制。</em></p>
-<p><em>2-subject01_CMC_forces.sto ： 肌肉力以及储备&#x2F;残余力和扭矩。</em></p>
-<p><em>3-subject01_walk1_states.sto: 模拟运动的模型状态和肌肉状态（即关节角度和速度，肌肉纤维长度和激活）。</em></p>
-<p>*<strong>·CMC工具使用*</strong></p>
-<p>和之前各种工具的使用一样，按下图添加对应文件。在Desired Kinematics添加RRA的运行结果.sto。Tracking tasks 选择CMC_Tasks.xml。这里需要再添加一个Actuator Constraints致动器限制CMC_ControlConstraints.xml。</p>
-<p><img src="https://pic3.zhimg.com/80/v2-dbe2e11aff7a2ada90866cab4391d6c0_720w.webp" alt="img"></p>
-<center>图2.6.3 CMC工具界面</center>
-
-<p>在致动器和外部负载部分，致动器选择CMC_Actuators.xml；外部负载选择之前保存的地面反作用力grf.xml：</p>
-<p><img src="https://picx.zhimg.com/80/v2-cae59f5c0113902f76beb10cabe3efcf_720w.webp" alt="img"></p>
-<center>图2.6.4 CMC工具界面</center>
-
-<p>最后修改输出位置，点击run运行，得到输出结果：</p>
-<p><img src="https://pic3.zhimg.com/80/v2-1f9bff6ad953dbf92789421d677cc17c_720w.webp" alt="img"></p>
-<center>图2.6.5 CMC输出文件</center>
-
-<p>使用控制约束文件来约束CMC激励以匹配EMG数据。在使用CMC时，有时优化器会选择在不应该被激活的运动过程中激活肌肉。例如，根据运行期间的肌电图记录，我们知道soleus在swing期间不应该有太多的活动。但有时CMC会选择激活肌肉，因为它不知道肌电数据。为了更好地匹配实验肌电图，我们可以在特定的运动时间限制CMC对soleus的激活。下面是一个约束示例，其中右soleus被指定为在0.7272和0.9945s之间。</p>
-<p>控制约束显示在Excitation Editor GUI中。添加了一些线来说明节点是如何连接的。与节点关联的值在指定时间之前应用。换句话说，当解释一个控制或它的约束(最小值或最大值)时，应用的是t(i+1)处未来节点到t(i)处当前节点的值。</p>
-<p><img src="https://pic4.zhimg.com/80/v2-45dc8f2b2a9388a59cc2f3dcc2828977_720w.webp" alt="img"></p>
-<center>图2.6.6 CMC约束文件更改</center>
-
-<h3 id="2-7-FD前向动力学"><a href="#2-7-FD前向动力学" class="headerlink" title="2.7 FD前向动力学"></a>2.7 FD前向动力学</h3><p><strong>2.7.1 FD简介及目的</strong></p>
-<p>FD前向动力学是指通过使用已知的肌肉激活模式和关节力矩，计算模型在给定时间范围内的运动轨迹和力学行为。这可以帮助研究人员更好地理解和预测人体运动的力学性能。</p>
-<p>给定由计算肌肉控制(CMC)或其他方法计算的控制(例如肌肉刺激)，前向动力学工具可以驱动前向动态模拟。前向动力学模拟是定义肌肉骨骼模型动力学的微分方程的解(积分)。通过关注感兴趣的特定时间间隔，并使用不同的分析，可以收集有关试验的更详细的生物力学数据。</p>
-<p><strong>2.7.2 FD原理</strong></p>
-<p>*<strong>·肌肉骨骼模型动力学：*</strong></p>
-<p><img src="https://pic4.zhimg.com/80/v2-7266916ae883c81cb12f06b64d29e403_720w.webp" alt="img"></p>
-<p>*<strong>·肌肉骨骼模型的状态*</strong></p>
-<p>模型的状态是在给定的时间点定义的所有模型变量的集合，这些变量由动力学控制。模型动力学描述了模型如何随着时间从给定状态前进到另一状态。</p>
-<p>在肌肉骨骼模型中，状态是坐标及其速度，肌肉激活和肌肉纤维长度。模型的动力学要求知道模型的状态，以便计算模型状态响应力和控制的变化率（联合加速度，激活率和纤维速度）。</p>
-<p>*<strong>·控制肌肉骨骼模型*</strong></p>
-<p>肌肉骨骼模型中的力（例如，肌肉力）受动力学控制，并具有影响其行为的输入。在OpenSim中，这些输入称为模型的控件，可以是肌肉的激励或扭矩生成器。最终，控件确定施加到模型的力和（&#x2F;或）扭矩，并因此确定合成运动。</p>
-<p>*<strong>·动力学方程的数值积分*</strong></p>
-<p>仿真是从用户指定的初始状态开始，对肌肉骨骼模型的动力学方程式进行的集成。在加入控件后，将计算激活率，肌纤维速度和坐标加速度。然后，通过数值积分来确定将来较小时间间隔之后的新状态。5阶龙格-库塔-菲尔德博格积分器用于求解肌肉骨骼模型状态在一定时间间隔内的轨迹动力学方程（数值解）。</p>
-<p>正向动力学工具Forward Dynamics Tool是一个开环系统，可在没有反馈或校正机制的情况下应用肌肉&#x2F;执行器控制muscle&#x2F;actuator controls，因此不需要状态遵循期望的轨迹。</p>
-<p><strong>2.7.3 FD工具的使用</strong></p>
-<p>*<strong>·FD的输入与输出*</strong></p>
-<p><img src="https://picx.zhimg.com/80/v2-23c2e26af1d8deea01af9962469477ef_720w.webp" alt="img"></p>
-<center>图2.7.1 FD输入与输出</center>
-
-<p>输入：</p>
-<p><em>以Gait2354_Simbody模型的文件目录为例。正向动力学工具将四个数据文件用作输入：</em></p>
-<p><em>1-subject01_walk1_controls.xml:包含模型控件（例如，肌肉激励）到肌肉和&#x2F;或关节扭矩的时间历史。可以将控件指定为.sto文件，其列与所需的激励相对应。该文件可由用户，静态优化工具或计算机肌肉控制工具生成。如果未提供任何控件，则对于模型中的任何执行器均假定为零。</em></p>
-<p><em>2-subject01_walk1_states.sto：包含模型状态的时间历史记录，包括关节角度，关节速度，肌肉激活，肌肉纤维长度等。这些状态由“正向动力学”工具用来设置模型的初始状态以进行正向集成。如果使用CMC的控件运行正向仿真，则应在此处指定从CMC输出的状态文件。当检查执行器状态的平衡求解时，可以通过求解肌腱和肌肉纤维力平衡来估计肌肉状态 。如果在GUI中运行正向工具，但未指定初始状态文件，则模拟将从模型的当前姿势开始；如果从命令行运行正向工具，但未指定初始状态文件，则模拟将从模型的默认姿势开始。</em></p>
-<p><em>3-subject01_Setup_Forward.xml：</em>该文件是正向动力学工具安装文件。它包含设置，并引用另一个设置文件gait2354_CMC_Actuators.xml，该文件包含一组补充模型肌肉的促动器。这些执行器必须包含在前向仿真中，以便可以复制CMC解决方案。</p>
-<p><em>4-subject01_walk1_grf.xml: 外部载荷数据（即，地面反作用力，力矩和压力中心位置）。</em></p>
-<p><em>5-subject01_simbody_adjusted.osim：特定对象的OpenSim模型，该模型是通过使用“缩放工具”或其他方法缩放通用模型以及包含已调整的虚拟标记的关联标记集生成的。模型必须包括惯性参数。模型应具有经过调整的躯干质心，以减少残差。</em></p>
-<p>输出：</p>
-<p><em>Results：通过向前向动态工具添加分析，可以生成额外的数据并将其写入文件。这些分析在设置文件(subject01_Setup_Forward.xml)中指定，将在Analyses分析部分中讨论。</em></p>
-<p>*<strong>·FD工具使用*</strong></p>
-<p>点击Tools- Forwrd Dynamics，和之前各种工具的使用一样，按下图添加对应文件。在Controls处添加CMC的运行结果subject01_walk1_controls.xml。Initial State选择CMC的运行结果subject01_walk1_states.sto。</p>
-<p><img src="https://pica.zhimg.com/80/v2-88ea42033f644b18d592eb0b8d32b8e2_720w.webp" alt="img"></p>
-<center>图2.7.2 FD工具界面</center>
-
-<p>在致动器和外部负载部分，致动器选择CMC_Actuators.xml；外部负载选择之前保存的地面反作用力grf.xml：</p>
-<p><img src="https://picx.zhimg.com/80/v2-b2364752cacd5b9770abddec486c044f_720w.webp" alt="img"></p>
-<center>图2.7.3 FD工具界面</center>
-
-<p>对于Analyses面板，分析窗格中包含分析，可以在运行前向模拟时执行分析。除了在基本的开环正向动力学系统中验证CMC结果之外，正向动力学步骤的主要目的是记录其他仿真数据。通过使用分析，可以从Forward Dynamics工具获取其他输出数据。这些不是Forward Dyanamics工具所独有的。实际上，同样的分析步骤也可以添加到RRA和CMC的工具当中，但是由于正向运行比CMC快得多，因此调整和重新运行正向仿真以获得新数据比重新运行CMC更实用。</p>
-<p>感兴趣的基本分析是：</p>
-<p>Kinematics运动学：记录广义坐标（q’s），广义速度（u’s）和加速度（即广义速度的导数：du&#x2F;dt）</p>
-<p>BodyKinematics：记录每个物体的配置（质心位置和方向的中心），以及它们的速度（线性和角度）和加速度（线性和角度）。此外，它还记录了模型的整体质心，以及该质心的速度和加速度。</p>
-<p>Actuation驱动： 记录模型的每个驱动器产生的广义力，速度和功率。广义力可以是力（单位为N）或扭矩（单位为Nm）。致动器速度是致动器缩短的速率。取决于执行器，速度可以是平移速度（m &#x2F;s）或角速度（deg &#x2F;s）。执行器功率（瓦）是执行器工作的速率。正功表示执行器正在向模型传递能量，负功率表示执行器正在吸收模型中的能量。</p>
-<p><img src="https://pica.zhimg.com/80/v2-732c4541ce8854f6286dffb0de744cc8_720w.webp" alt="img"></p>
-<center>图2.7.4 FD工具界面</center>
-
-<p>选中<strong>使用状态文件中的时间步长</strong>(Use time steps from states file)旁边的复选框，可以手动输入积分器设置。文本框中为积分器步骤和积分器容差，输入适当的值。</p>
-<p><img src="https://pic1.zhimg.com/80/v2-4f85e8955502372261620e3699cffe9a_720w.webp" alt="img"></p>
-<center>图2.7.5 FD工具界面</center>
-
-<p>最后点击run运行得到FD输出结果。</p>
-<h3 id="2-8-Analyses分析工具"><a href="#2-8-Analyses分析工具" class="headerlink" title="2.8 Analyses分析工具"></a><strong>2.8 Analyses分析工具</strong></h3><p><strong>2.8.1 Analyses简介及目的</strong></p>
-<p>分析工具使您能够基于大量输入来分析模型或模拟，这些输入可以包括模型状态的时间历史记录、控件和应用于模型的外部负载。一个典型的用例是分析现有的模拟，它可能是通过CMC计算肌肉控制计算出来的，而不需要重新运行模拟。这不仅节省了计算时间，而且更重要的是，可以准确地分析模拟发生的情况，避免在重新运行前向积分时经常发生的数值漂移，特别是在模拟持续时间很长时。</p>
-<p><strong>2.8.2 Analyses工具使用</strong></p>
-<p>*<strong>·Analyses的输入与输出*</strong></p>
-<p>Analysis Tool分析工具会及时浏览一组指定模型状态的输入数据。在每个时间步，该工具都会对模型进行一组分析。可用的分析包括：</p>
-<p>1）OutputReporter：此分析仅在4.0中具有。</p>
-<p>2）Kinematics：记录广义坐标、广义速度和加速度。</p>
-<p>3）BodyKinematics：记录每个body的配置，以及它们的速度和加速度。此外还记录了模型的整体质心，以及该质心的速度和加速度。</p>
-<p>4）Actuation：记录模型中每个驱动器产生的广义力force，速度speed和功率power。</p>
-<p>5）JointReaction：关节反应载荷。</p>
-<p>收集结果并将其写入文件，通常是存储（.sto）文件，您可以使用其他程序（例如Matlab或Microsoft Excel）打开这些文件，以进行进一步的分析或绘图。Analysis Tool可能需要四种类型的输入来分析模型：</p>
-<p>1）states： 由微分方程控制，因此在仿真过程中会进行积分。</p>
-<p>2）controls：控件是用于控制模型行为的自变量。肌肉刺激就是一个例子。它们不受微分方程式的控制，但通常可以自由取零（无激励）和一（全激励）之间的任何值。模型的控制通常是在优化问题中用作控制参数的变量。</p>
-<p>3）external loads：外部负载是在地面（或世界）与模型主体之间施加的力或扭矩。例如，您可能具有在步态实验期间记录的测力板数据。通过将数据输入为外部载荷，可以将记录的力和力矩施加到模型的左右脚上。</p>
-<p><strong>!分析工具与FD正向动力学工具具有相同的输入和输出文件！</strong></p>
-<p>*<strong>·Analyses工具使用（以关节反作用力和为例）*</strong></p>
-<p>点击Tools- Analyze，和之前各种工具的使用一样，按下图添加对应文件。</p>
-<p>如果正在对现有的模拟运行分析，通常会指定该模拟输出的一组控件和状态。在Controls处添加CMC的运行结果subject01_walk1_controls.xml或者。State选择CMC的运行结果subject01_walk1_states.sto。</p>
-<p>如果运行一组基于实验记录的运动的分析，您可以使用单选Motion，选择运动作为输入类型，在Controls添加STO的运行结果StaticOptimization_controls.xml，在Motion处选择IK的运行结果subject01_walk1_ik_result.mot。滤波依然选择6Hz。</p>
-<p><img src="https://pica.zhimg.com/80/v2-51bbff493fd55722eb4f48499514f33c_720w.webp" alt="img"></p>
-<center>图2.8.1 Analyses工具界面</center>
-
-<p>在致动器和外部负载部分，致动器选择CMC_Actuators.xml；外部负载选择之前保存的地面反作用力grf.xml：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-dc0ce4ceb69bae25e4263f197a737a8f_720w.webp" alt="img"></p>
-<center>图2.8.2 Analyses工具界面</center>
-
-<p>以计算右侧膝关节反作用力为例，在Analyses界面点击Add添加JointReaction，再选中点击Edit编辑，进入编辑界面。将joint_names改成右侧膝关节knee_r，apply_on_bodies和express_in_frame一个改成child，一个改成parent即可。在forces_file处添加静态优化的输出文件StaticOptimization_force.sto，一定要将文件地址和文件名及后缀都添加上。</p>
-<p><img src="https://pic3.zhimg.com/80/v2-c20ee1178c04164733fa20c1af5b25c2_720w.webp" alt="img"></p>
-<center>图2.8.3 Analyses工具界面</center>
-
-<p>点击run运行得到右侧膝关节反作用力结果.sto(这里用表格打开，当然也可以用plot画图工具查看)：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-b9400864a5658bb3c3725c76a7b631c3_720w.webp" alt="img"></p>
-<center>图2.8.4 右侧膝关节反作用力分析结果</center>
-
-<p>以计算质心为例，在Analyses界面点击Add添加BodyKinematics，再选中点击Edit编辑，进入编辑界面。将bodies改成质心center_of_mass。</p>
-<p><img src="https://pica.zhimg.com/80/v2-9713fe1a755627d1613137e4ba3a6354_720w.webp" alt="img"></p>
-<center>图2.8.5 Analyses工具界面</center>
-
-<p>点击run运行得到质心结果.sto，主要有加速度，速度，位置：</p>
-<p><img src="https://pic2.zhimg.com/80/v2-14494900952d4d30ba95c55b82923077_720w.webp" alt="img"></p>
-<center>图2.8.6 质心分析结果</center>]]></content>
-      <categories>
-        <category>教程</category>
-      </categories>
-      <tags>
-        <tag>教程</tag>
-        <tag>OpenSim</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Human-in-the-loop optimization of exoskeleton assistance during walking</title>
-    <url>/2024/11/11/Human-in-the-loop%20optimization%20of%20exoskeleton%20assistance%20during%20walking/</url>
-    <content><![CDATA[<p><strong>原名：</strong>Human-in-the-loop optimization of exoskeleton assistance during walking</p>
+<!DOCTYPE html><html lang="zh" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Human-in-the-loop optimization of exoskeleton assistance during walking | RichLuv Studio</title><meta name="author" content="Clemenza"><meta name="copyright" content="Clemenza"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="对实验室张老师一篇发布在Science上的文章解读">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Human-in-the-loop optimization of exoskeleton assistance during walking">
+<meta property="og:url" content="http://example.com/2024/11/11/Human-in-the-loop%20optimization%20of%20exoskeleton%20assistance%20during%20walking/index.html">
+<meta property="og:site_name" content="RichLuv Studio">
+<meta property="og:description" content="对实验室张老师一篇发布在Science上的文章解读">
+<meta property="og:locale">
+<meta property="og:image" content="https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg">
+<meta property="article:published_time" content="2024-11-11T11:12:02.221Z">
+<meta property="article:modified_time" content="2024-11-11T11:22:48.429Z">
+<meta property="article:author" content="Clemenza">
+<meta property="article:tag" content="论文伴读">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2024/11/11/Human-in-the-loop%20optimization%20of%20exoskeleton%20assistance%20during%20walking/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        if (name && globalFn[key][name]) return
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"languages":{"hits_empty":"No results found for: ${query}","hits_stats":"${hits} articles found"}},
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":50,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: {"limitCount":50,"languages":{"author":"Author: Clemenza","link":"Link: ","source":"Source: RichLuv Studio","info":"Copyright belongs to the author. For commercial use, please contact the author for authorization. For non-commercial use, please indicate the source."}},
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Human-in-the-loop optimization of exoskeleton assistance during walking',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: true,
+  isToc: true,
+  postUpdate: '2024-11-11 19:22:48'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><script>window.paceOptions = {
+  restartOnPushState: false
+}
+
+btf.addGlobalFn('pjaxSend', () => {
+  Pace.restart()
+}, 'pace_restart')
+
+</script><link rel="stylesheet" href="/ccs/loading-bar.css"/><script src="https://cdn.jsdelivr.net/npm/pace-js/pace.min.js"></script><div id="web_bg" style="background-image: url(/img/sza.jpg);"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/touxiang1.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">4</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">5</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 目录</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 数字影像</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/Gallery/"><i class="fa-fw fas fa-images"></i><span> 照片</span></a></li><li><a class="site-page child" href="/movies/"><i class="fa-fw fas fa-video"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 标签归档</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></li><li><a class="site-page child" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></li></ul></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 链接</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/link/"><i class="fa-fw fas fa-link"></i><span> 抖音</span></a></li><li><a class="site-page child" href="/link/"><i class="fa-fw fas fa-link"></i><span> 小红书</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">RichLuv Studio</span></a><a class="nav-page-title" href="/"><span class="site-name">Human-in-the-loop optimization of exoskeleton assistance during walking</span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> Search</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 目录</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 数字影像</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/Gallery/"><i class="fa-fw fas fa-images"></i><span> 照片</span></a></li><li><a class="site-page child" href="/movies/"><i class="fa-fw fas fa-video"></i><span> 视频</span></a></li></ul></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 标签归档</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></li><li><a class="site-page child" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></li></ul></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> 链接</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/link/"><i class="fa-fw fas fa-link"></i><span> 抖音</span></a></li><li><a class="site-page child" href="/link/"><i class="fa-fw fas fa-link"></i><span> 小红书</span></a></li></ul></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Human-in-the-loop optimization of exoskeleton assistance during walking</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2024-11-11T11:12:02.221Z" title="Created 2024-11-11 19:12:02">2024-11-11</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2024-11-11T11:22:48.429Z" title="Updated 2024-11-11 19:22:48">2024-11-11</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E8%AE%BA%E6%96%87/">论文</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><p><strong>原名：</strong>Human-in-the-loop optimization of exoskeleton assistance during walking</p>
 <p><strong>译名：</strong>行走期间外骨骼辅助的人环优化</p>
 <p><strong>作者：</strong>Zhang et al.</p>
 <p><strong>期刊：</strong>Science</p>
 <p><strong>IFQ：</strong>44.7 &#x2F; 1 &#x2F; 1</p>
-<p><strong>DOI：</strong> <a href="https://doi.org/10.1126/science.aal5054">10.1126&#x2F;science.aal5054</a></p>
+<p><strong>DOI：</strong> <a target="_blank" rel="noopener" href="https://doi.org/10.1126/science.aal5054">10.1126&#x2F;science.aal5054</a></p>
 <p><strong>发表时间：</strong>2017-06-23</p>
 <p><strong>本地链接:</strong> <a href="zotero://open-pdf/0_VSKYACPL">Zhang 等 - 2017 - Human-in-the-loop optimization of exoskeleton assistance during walking.pdf</a></p>
 <h2 id="📝创新："><a href="#📝创新：" class="headerlink" title="📝创新："></a>📝创新：</h2><p>在使用过程中系统地改变设备控制以最大限度地提高人类性能的方法，称之为 <strong>“人在环中优化”</strong>（图 1A）。开发了一种样本有效的方法来识别外骨骼控制参数，以最大限度地减少人类行走的代谢能成本(图1B )。</p>
@@ -696,12 +246,4 @@
 
 <h2 id="🚩-未来展望："><a href="#🚩-未来展望：" class="headerlink" title="🚩 未来展望："></a>🚩 未来展望：</h2><p>文章使用的进化策略比我们尝试的其他方法更有效，但似乎可以开发出改进的技术。在相关方法的早期试点测试中，由于对噪声和适应动力学的敏感性，基于模型的优化技术是无效的。文章通过为主要实验中的每个参与者生成数据的二次近似来说明这个问题，这些近似值解释了很少的方差，并且对最佳参数值进行了不合理的估计（表 S4）。新的候选算法应该能够容忍较高的测量噪声，便于人类适应，并且在收敛之前需要很少的评估。对于该算法和其他算法，优化周期的持续时间将如何随附加参数的增加而增长仍有待观察。</p>
 <p>文章期望通过人在回路中的优化来提高辅助设备在许多情况下的有效性。在较短的时间内成功地优化了四维控制律，这表明优化更复杂的外骨骼和假肢可能是可能的。优化反馈控制结构中类似数量的参数，如神经肌肉模型（38），或在优化模式之间切换（39）可以提高运动条件变化下的性能。成功降低新陈代谢率和肌肉活动表明，可以优化具有相似属性的替代目标函数 —— 例如，与速度（40）、耐力（41）、平衡或整体满意度相关。多功能仿真器系统可用于在处方过程中识别最佳设备特征，然后可以制造定制的移动设备。在日常生活中，可以使用心率或肌肉活动( 42 )等代理指标进行优化，提供更嘈杂但更丰富的性能数据。这些方法对于具有不同生理需求的人群，从慢性中风患者到运动员，都有改善流动性的余地。</p>
-]]></content>
-      <categories>
-        <category>论文</category>
-      </categories>
-      <tags>
-        <tag>论文伴读</tag>
-      </tags>
-  </entry>
-</search>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a target="_blank" rel="noopener" href="https://richluv.fra1.zeabur.app/">Clemenza</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://example.com/2024/11/11/Human-in-the-loop%20optimization%20of%20exoskeleton%20assistance%20during%20walking/">http://example.com/2024/11/11/Human-in-the-loop%20optimization%20of%20exoskeleton%20assistance%20during%20walking/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">此文章版权归Clemenza所有，如有转载，请注明来自原作者</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E8%AE%BA%E6%96%87%E4%BC%B4%E8%AF%BB/">论文伴读</a></div><div class="post-share"><div class="social-share" data-image="https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><div class="post-reward"><div class="reward-button"><i class="fas fa-qrcode"></i>欢迎打赏</div><div class="reward-main"><ul class="reward-all"><li class="reward-item"><a href="/img/%E5%BE%AE%E4%BF%A1%E6%94%B6%E6%AC%BE.jpg" target="_blank"><img class="post-qr-code-img" src="/img/%E5%BE%AE%E4%BF%A1%E6%94%B6%E6%AC%BE.jpg" alt="微信支付"/></a><div class="post-qr-code-desc">微信支付</div></li><li class="reward-item"><a href="/img/%E6%94%AF%E4%BB%98%E5%AE%9D%E6%94%B6%E6%AC%BE.jpg" target="_blank"><img class="post-qr-code-img" src="/img/%E6%94%AF%E4%BB%98%E5%AE%9D%E6%94%B6%E6%AC%BE.jpg" alt="支付宝支付"/></a><div class="post-qr-code-desc">支付宝支付</div></li></ul></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2024/11/04/Matlab%E5%9F%BA%E4%BA%8ESIFT%E7%9A%84%E5%9B%BE%E5%83%8F%E7%89%B9%E5%BE%81%E5%8C%B9%E9%85%8D%E4%B8%8E%E6%8B%BC%E6%8E%A5%E7%AE%97%E6%B3%95/" title="Matlab基于SIFT的图像特征匹配与拼接算法"><img class="cover" src="https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">Matlab基于SIFT的图像特征匹配与拼接算法</div></div><div class="info-2"><div class="info-item-1">在Matlab上实现于SIFT的图像特征匹配与拼接算法</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/touxiang1.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">Clemenza</div><div class="author-info-description">Rich&Love</div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">4</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">5</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/Clemenza-2001"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/Clemenza-2001" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:wangyuehao2001@163.com" target="_blank" title="邮箱"><i class="fas fa-envelope"></i></a><a class="social-icon" href="/clemenza2001" target="_blank" title="微信"><i class="fa-solid fa-user-secret"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">欢迎来到RichLuv Studio</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%9D%E5%88%9B%E6%96%B0%EF%BC%9A"><span class="toc-text">📝创新：</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%8C%8F%E7%A0%94%E7%A9%B6%E8%83%8C%E6%99%AF%EF%BC%9A"><span class="toc-text">🌏研究背景：</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%93%9D%E5%AE%9E%E9%AA%8C%EF%BC%9A"><span class="toc-text">📝实验：</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%F0%9F%94%AC%E5%AE%9E%E9%AA%8C%E8%AE%BE%E8%AE%A1%EF%BC%9A"><span class="toc-text">🔬实验设计：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%F0%9F%94%AC%E5%AE%9E%E9%AA%8C%E7%8E%AF%E5%A2%83%EF%BC%9A"><span class="toc-text">🔬实验环境：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%F0%9F%94%AC%E5%AE%9E%E9%AA%8C%E8%BF%87%E7%A8%8B%EF%BC%9A"><span class="toc-text">🔬实验过程：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%F0%9F%94%AC%E5%AE%9E%E9%AA%8C%E7%BB%93%E6%9E%9C%EF%BC%9A"><span class="toc-text">🔬实验结果：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%F0%9F%94%AC%E9%A2%9D%E5%A4%96%E9%AA%8C%E8%AF%81%E5%AE%9E%E9%AA%8C%EF%BC%9A"><span class="toc-text">🔬额外验证实验：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%F0%9F%94%AC%E6%94%B6%E6%95%9B%E5%AE%9E%E9%AA%8C%EF%BC%9A"><span class="toc-text">🔬收敛实验：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%F0%9F%93%9C-%E5%85%B6%E4%BB%96%E7%BB%93%E6%9E%9C%EF%BC%9A"><span class="toc-text">📜 其他结果：</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%F0%9F%9A%A9-%E6%9C%AA%E6%9D%A5%E5%B1%95%E6%9C%9B%EF%BC%9A"><span class="toc-text">🚩 未来展望：</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2024/11/11/Human-in-the-loop%20optimization%20of%20exoskeleton%20assistance%20during%20walking/" title="Human-in-the-loop optimization of exoskeleton assistance during walking"><img src="https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Human-in-the-loop optimization of exoskeleton assistance during walking"/></a><div class="content"><a class="title" href="/2024/11/11/Human-in-the-loop%20optimization%20of%20exoskeleton%20assistance%20during%20walking/" title="Human-in-the-loop optimization of exoskeleton assistance during walking">Human-in-the-loop optimization of exoskeleton assistance during walking</a><time datetime="2024-11-11T11:12:02.221Z" title="Created 2024-11-11 19:12:02">2024-11-11</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/11/04/Matlab%E5%9F%BA%E4%BA%8ESIFT%E7%9A%84%E5%9B%BE%E5%83%8F%E7%89%B9%E5%BE%81%E5%8C%B9%E9%85%8D%E4%B8%8E%E6%8B%BC%E6%8E%A5%E7%AE%97%E6%B3%95/" title="Matlab基于SIFT的图像特征匹配与拼接算法"><img src="https://pic1.zhimg.com/v2-00204a5368c2246ef3604c266a6546f6_1440w.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Matlab基于SIFT的图像特征匹配与拼接算法"/></a><div class="content"><a class="title" href="/2024/11/04/Matlab%E5%9F%BA%E4%BA%8ESIFT%E7%9A%84%E5%9B%BE%E5%83%8F%E7%89%B9%E5%BE%81%E5%8C%B9%E9%85%8D%E4%B8%8E%E6%8B%BC%E6%8E%A5%E7%AE%97%E6%B3%95/" title="Matlab基于SIFT的图像特征匹配与拼接算法">Matlab基于SIFT的图像特征匹配与拼接算法</a><time datetime="2024-11-04T11:53:10.481Z" title="Created 2024-11-04 19:53:10">2024-11-04</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/11/04/Opensim%E5%9F%BA%E7%A1%80%E6%95%99%E7%A8%8B/" title="OpenSim基础教程"><img src="https://picx.zhimg.com/80/v2-d133dd131c085d7dcd530e7d2b01c752_720w.webp?source=d16d100b" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="OpenSim基础教程"/></a><div class="content"><a class="title" href="/2024/11/04/Opensim%E5%9F%BA%E7%A1%80%E6%95%99%E7%A8%8B/" title="OpenSim基础教程">OpenSim基础教程</a><time datetime="2024-11-04T08:20:33.690Z" title="Created 2024-11-04 16:20:33">2024-11-04</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2024/10/29/hello-world/" title="自我介绍"><img src="/img/sza.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="自我介绍"/></a><div class="content"><a class="title" href="/2024/10/29/hello-world/" title="自我介绍">自我介绍</a><time datetime="2024-10-29T03:10:33.803Z" title="Created 2024-10-29 11:10:33">2024-10-29</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div id="footer-wrap"><div class="copyright">&copy;2024 By Clemenza</div><div class="footer_custom_text">不积硅步，无以至千里</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/instant.page/instantpage.min.js" type="module"></script><div class="js-pjax"></div><canvas class="fireworks" mobile="true"></canvas><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/dist/fireworks.min.js"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">Search</span><span id="loading-status"></span><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  Loading Database</span></div><div class="search-wrap"><div id="local-search-input"><div class="local-search-box"><input class="local-search-box--input" placeholder="Search for Posts" type="text"/></div></div><hr/><div id="local-search-results"></div><div id="local-search-stats-wrap"></div></div></div><div id="search-mask"></div><script src="/js/search/local-search.js"></script></div></div></body></html>
