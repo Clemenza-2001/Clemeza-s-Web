@@ -195,3 +195,28 @@
 .pace.pace-inactive {
 	display: none;
 }
+
+/* 在主题自定义CSS文件（source/_css/custom.css）中追加 */
+.upyun-footer {
+	text-align: center;
+	margin: 1rem 0;
+	padding: 0.8rem 0;
+	border-top: 1px solid #eee;
+}
+  
+.upyun-footer img {
+	height: 2px;
+	vertical-align: middle;
+	margin: 0 5px;
+	transition: opacity 0.3s;
+}
+  
+.upyun-footer img:hover {
+	opacity: 0.8;
+  }
+  
+.notice {
+	font-size: 0.9rem;
+	color: #eee;
+	margin-top: 0.5rem;
+}
